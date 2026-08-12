@@ -427,58 +427,45 @@ String(s??"").replace(
 
 
 /* =====================================================
-   PRODUCT MASTER PROFIT HELPERS
+   PRODUCT MASTER
+   THIS IS THE ONLY SOURCE FOR PRODUCT PRICES
 ===================================================== */
 
 function normalizeProductName(value){
-
   return String(value || "")
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g," ")
-    .replace(/\s+/g," ")
-    .trim();
-
+    .replace(/\s+/g," ");
 }
 
 
+/*
+  Exact Product Master lookup.
+  Product name is the key.
+*/
 function findProductByName(value){
 
-  const key=normalizeProductName(value);
+  const key=
+    normalizeProductName(value);
 
-  if(!key) return null;
+  if(!key)return null;
 
-  /*
-    FIRST:
-    Exact Product Master name
-  */
-
-  const exact=cache.products.find(
-    p=>normalizeProductName(p.name)===key
-  );
-
-  if(exact) return exact;
-
-  /*
-    SECOND:
-    Tolerant matching for minor naming differences
-  */
-
-  return cache.products.find(p=>{
-
-    const productKey=
-      normalizeProductName(p.name);
-
-    return(
-      productKey.includes(key) ||
-      key.includes(productKey)
-    );
-
-  }) || null;
-
+  return cache.products.find(
+    p =>
+      normalizeProductName(p.name) === key
+  ) || null;
 }
 
 
+/*
+  SALE CALCULATION
+
+  Sale Amount =
+  Sale Price × Quantity
+
+  Profit =
+  (Sale Price - Purchase Price) × Quantity
+*/
 function calculateProductProfit(
   productName,
   quantity
@@ -520,6 +507,46 @@ function calculateProductProfit(
     salePrice,
     amount,
     profit
+  };
+
+}
+
+
+/*
+  PURCHASE CALCULATION
+
+  Purchase Amount =
+  Purchase Price × Quantity
+*/
+function calculateProductPurchase(
+  productName,
+  quantity
+){
+
+  const product=
+    findProductByName(productName);
+
+  if(!product){
+
+    return{
+      product:null,
+      purchasePrice:0,
+      amount:0
+    };
+
+  }
+
+  const qty=
+    Number(quantity||0);
+
+  const purchasePrice=
+    Number(product.purchase_price||0);
+
+  return{
+    product,
+    purchasePrice,
+    amount:
+      purchasePrice*qty
   };
 
 }
@@ -1175,13 +1202,6 @@ function dashboardPage(main){
       );
 
 
-  /* ==========================================
-     PROFIT
-     
-     Product Master is the ONLY source
-     for purchase price and sale price.
-  ========================================== */
-
   const productProfit=bill=>{
 
     const result=
@@ -1387,45 +1407,33 @@ function dashboardPage(main){
         style="min-width:145px"
       >
 
-        <option
-          value="today"
-          ${selectedRange==="today"?"selected":""}
-        >
+        <option value="today"
+          ${selectedRange==="today"?"selected":""}>
           Today
         </option>
 
-        <option
-          value="yesterday"
-          ${selectedRange==="yesterday"?"selected":""}
-        >
+        <option value="yesterday"
+          ${selectedRange==="yesterday"?"selected":""}>
           Yesterday
         </option>
 
-        <option
-          value="week"
-          ${selectedRange==="week"?"selected":""}
-        >
+        <option value="week"
+          ${selectedRange==="week"?"selected":""}>
           This Week
         </option>
 
-        <option
-          value="month"
-          ${selectedRange==="month"?"selected":""}
-        >
+        <option value="month"
+          ${selectedRange==="month"?"selected":""}>
           This Month
         </option>
 
-        <option
-          value="year"
-          ${selectedRange==="year"?"selected":""}
-        >
+        <option value="year"
+          ${selectedRange==="year"?"selected":""}>
           This Year
         </option>
 
-        <option
-          value="all"
-          ${selectedRange==="all"?"selected":""}
-        >
+        <option value="all"
+          ${selectedRange==="all"?"selected":""}>
           All Time
         </option>
 
@@ -1445,8 +1453,6 @@ function dashboardPage(main){
 
   </div>
 
-
-  <!-- TODAY -->
 
   <div class="section">
 
@@ -1480,10 +1486,7 @@ function dashboardPage(main){
 
     </div>
 
-    <div
-      class="grid"
-      style="margin-top:14px"
-    >
+    <div class="grid" style="margin-top:14px">
 
       ${metric(
         "Today's Expenses",
@@ -1505,10 +1508,7 @@ function dashboardPage(main){
 
     </div>
 
-    <div
-      class="grid"
-      style="margin-top:14px"
-    >
+    <div class="grid" style="margin-top:14px">
 
       ${metric(
         "Today's Bills",
@@ -1555,13 +1555,9 @@ function dashboardPage(main){
   </div>
 
 
-  <!-- SELECTED PERIOD -->
-
   <div class="section">
 
-    <h3>
-      ${rangeLabel.toUpperCase()} OVERVIEW
-    </h3>
+    <h3>${rangeLabel.toUpperCase()} OVERVIEW</h3>
 
     <div class="grid">
 
@@ -1591,10 +1587,7 @@ function dashboardPage(main){
 
     </div>
 
-    <div
-      class="grid"
-      style="margin-top:14px"
-    >
+    <div class="grid" style="margin-top:14px">
 
       ${metric(
         rangeLabel+" Profit",
@@ -1619,13 +1612,9 @@ function dashboardPage(main){
   </div>
 
 
-  <!-- COMPLETE BUSINESS OVERVIEW -->
-
   <div class="section">
 
-    <h3>
-      COMPLETE BUSINESS OVERVIEW
-    </h3>
+    <h3>COMPLETE BUSINESS OVERVIEW</h3>
 
     <div class="grid">
 
@@ -1649,10 +1638,7 @@ function dashboardPage(main){
 
     </div>
 
-    <div
-      class="grid"
-      style="margin-top:14px"
-    >
+    <div class="grid" style="margin-top:14px">
 
       ${metric(
         "Customer Outstanding",
@@ -1680,10 +1666,7 @@ function dashboardPage(main){
 
     </div>
 
-    <div
-      class="grid"
-      style="margin-top:14px"
-    >
+    <div class="grid" style="margin-top:14px">
 
       ${metric(
         "Stock Value",
@@ -1714,8 +1697,6 @@ function dashboardPage(main){
   </div>
 
 
-  <!-- BUSINESS ANALYSIS -->
-
   <div class="section">
 
     <h3>BUSINESS ANALYSIS</h3>
@@ -1735,13 +1716,10 @@ function dashboardPage(main){
         ${
           topProducts.length===0
           ?
-          `<div class="empty">
-            No sales data yet.
-          </div>`
+          `<div class="empty">No sales data yet.</div>`
           :
           `
           <div class="table-wrap">
-
             <table>
 
               <tr>
@@ -1751,24 +1729,14 @@ function dashboardPage(main){
 
               ${
                 topProducts.map(x=>`
-
                   <tr>
-
-                    <td>
-                      ${esc(x[0])}
-                    </td>
-
-                    <td>
-                      ${money(x[1])}
-                    </td>
-
+                    <td>${esc(x[0])}</td>
+                    <td>${money(x[1])}</td>
                   </tr>
-
                 `).join("")
               }
 
             </table>
-
           </div>
           `
         }
@@ -1783,13 +1751,10 @@ function dashboardPage(main){
         ${
           topCustomers.length===0
           ?
-          `<div class="empty">
-            No customer sales data yet.
-          </div>`
+          `<div class="empty">No customer sales data yet.</div>`
           :
           `
           <div class="table-wrap">
-
             <table>
 
               <tr>
@@ -1799,24 +1764,14 @@ function dashboardPage(main){
 
               ${
                 topCustomers.map(x=>`
-
                   <tr>
-
-                    <td>
-                      ${esc(x[0])}
-                    </td>
-
-                    <td>
-                      ${money(x[1])}
-                    </td>
-
+                    <td>${esc(x[0])}</td>
+                    <td>${money(x[1])}</td>
                   </tr>
-
                 `).join("")
               }
 
             </table>
-
           </div>
           `
         }
@@ -1828,8 +1783,6 @@ function dashboardPage(main){
   </div>
 
 
-  <!-- STOCK ALERTS -->
-
   <div class="section">
 
     <h3>STOCK ALERTS</h3>
@@ -1838,15 +1791,11 @@ function dashboardPage(main){
 
       ${
         lowStock.length===0
-
         ?
-
         `<div class="empty">
           No low-stock products.
         </div>`
-
         :
-
         `
         <div class="table-wrap">
 
@@ -1862,12 +1811,9 @@ function dashboardPage(main){
             ${
               lowStock.slice(0,15).map(
                 p=>`
-
                 <tr>
 
-                  <td>
-                    ${esc(p.name)}
-                  </td>
+                  <td>${esc(p.name)}</td>
 
                   <td>
                     ${Number(p.stock||0)}
@@ -1880,15 +1826,12 @@ function dashboardPage(main){
                   </td>
 
                   <td>
-
                     <span class="pill red">
                       LOW STOCK
                     </span>
-
                   </td>
 
                 </tr>
-
               `
               ).join("")
             }
@@ -1903,8 +1846,6 @@ function dashboardPage(main){
 
   </div>
 
-
-  <!-- RECENT ACTIVITY -->
 
   <div class="section">
 
@@ -1929,15 +1870,11 @@ function dashboardPage(main){
 
       ${
         recentBills.length===0
-
         ?
-
         `<div class="empty">
           No bills recorded yet.
         </div>`
-
         :
-
         `
         <div class="table-wrap">
 
@@ -1968,8 +1905,6 @@ function dashboardPage(main){
 
   </div>
 
-
-  <!-- QUICK ACTIONS -->
 
   <div class="section">
 
@@ -2041,16 +1976,6 @@ function dashboardPage(main){
         + Expense
       </button>
 
-      <button
-        class="btn"
-        onclick="
-          active='calllist';
-          renderPage()
-        "
-      >
-        Who to Call
-      </button>
-
     </div>
 
   </div>
@@ -2066,17 +1991,11 @@ function metric(label,value,small){
 
   <div class="card metric">
 
-    <div class="label">
-      ${label}
-    </div>
+    <div class="label">${label}</div>
 
-    <div class="value">
-      ${value}
-    </div>
+    <div class="value">${value}</div>
 
-    <div class="small">
-      ${small}
-    </div>
+    <div class="small">${small}</div>
 
   </div>
 
@@ -2162,27 +2081,32 @@ function salesPage(main){
         </div>
 
 
+        <!-- PRODUCT NOW COMES DIRECTLY FROM PRODUCT MASTER -->
+
         <div class="field">
 
           <label>Product</label>
 
-          <input
+          <select
             id="saleProduct"
             required
-            list="productList"
-            placeholder="Product"
           >
 
-          <datalist id="productList">
+            <option value="">
+              Select Product
+            </option>
 
             ${
               cache.products.map(
-                x=>
-                  `<option value="${esc(x.name)}">`
+                x=>`
+                <option value="${esc(x.name)}">
+                  ${esc(x.name)}
+                </option>
+                `
               ).join("")
             }
 
-          </datalist>
+          </select>
 
         </div>
 
@@ -2227,16 +2151,13 @@ function salesPage(main){
 
         <div class="field two">
 
-          <label>
-            Live Calculation
-          </label>
+          <label>Live Calculation</label>
 
           <div
             id="saleCalcHint"
             class="hint"
           >
             Select a product and enter quantity.
-            Prices will come from Product Master.
           </div>
 
         </div>
@@ -2244,9 +2165,7 @@ function salesPage(main){
 
         <div class="field">
 
-          <label>
-            Payment Type
-          </label>
+          <label>Payment Type</label>
 
           <select id="salePayment">
 
@@ -2277,9 +2196,7 @@ function salesPage(main){
 
         <div class="field two">
 
-          <label>
-            Notes
-          </label>
+          <label>Notes</label>
 
           <textarea id="saleNotes"></textarea>
 
@@ -2288,9 +2205,7 @@ function salesPage(main){
 
         <div class="field two">
 
-          <label>
-            Bill PDF
-          </label>
+          <label>Bill PDF</label>
 
           <div class="filebox">
 
@@ -2371,22 +2286,18 @@ function salesPage(main){
   ).onsubmit=saveSale;
 
 
-  /* ==========================================
-     LIVE PRODUCT MASTER CALCULATION
-  ========================================== */
-
   const recalcSale=()=>{
 
     const productName=
-      document
-        .getElementById("saleProduct")
-        ?.value;
+      document.getElementById(
+        "saleProduct"
+      ).value;
 
     const qty=
       Number(
-        document
-          .getElementById("saleQty")
-          ?.value||0
+        document.getElementById(
+          "saleQty"
+        ).value||0
       );
 
 
@@ -2433,18 +2344,8 @@ function salesPage(main){
 
       profitEl.value="0";
 
-
-      if(productName){
-
-        hintEl.textContent=
-          "Product not found in Product Master. Select the exact product name from the list.";
-
-      }else{
-
-        hintEl.textContent=
-          "Select a product and enter quantity. Prices will come from Product Master.";
-
-      }
+      hintEl.textContent=
+        "Select a product and enter quantity.";
 
       return;
 
@@ -2464,26 +2365,18 @@ function salesPage(main){
       result.profit.toFixed(2);
 
 
-    hintEl.textContent=
-      `${result.product.name}: `+
-      `Sale ${money(result.salePrice)} − `+
-      `Purchase ${money(result.purchasePrice)} = `+
-      `Margin ${money(
-        result.salePrice-
-        result.purchasePrice
-      )} × `+
-      `${qty} qty = `+
-      `Profit ${money(result.profit)}`;
+    hintEl.innerHTML=
+      `<b>${esc(result.product.name)}</b>:
+      Sale ${money(result.salePrice)}
+      − Purchase ${money(result.purchasePrice)}
+      = Margin ${money(
+        result.salePrice-result.purchasePrice
+      )}
+      × ${qty} qty
+      = <b>Profit ${money(result.profit)}</b>`;
 
   };
 
-
-  document
-    .getElementById("saleProduct")
-    .addEventListener(
-      "input",
-      recalcSale
-    );
 
   document
     .getElementById("saleProduct")
@@ -2525,11 +2418,9 @@ function salesPage(main){
 
         const amt=
           Number(
-            document
-              .getElementById(
-                "saleAmt"
-              )
-              ?.value||0
+            document.getElementById(
+              "saleAmt"
+            ).value||0
           );
 
         const mode=
@@ -2565,23 +2456,25 @@ function salesPage(main){
 }
 
 
+/* =====================================================
+   SAVE SALE
+===================================================== */
+
 async function saveSale(e){
 
   e.preventDefault();
 
 
-  /* ==========================================
-     READ FORM
-  ========================================== */
-
   const productName=
-    String(
-      saleProduct.value||""
-    ).trim();
+    document.getElementById(
+      "saleProduct"
+    ).value.trim();
 
   const qty=
     Number(
-      saleQty.value||0
+      document.getElementById(
+        "saleQty"
+      ).value||0
     );
 
 
@@ -2607,9 +2500,11 @@ async function saveSale(e){
   }
 
 
-  /* ==========================================
-     PRODUCT MASTER IS SOURCE OF TRUTH
-  ========================================== */
+  /*
+    IMPORTANT:
+    Get the product AGAIN from Product Master
+    at the exact moment of saving.
+  */
 
   const result=
     calculateProductProfit(
@@ -2645,10 +2540,6 @@ async function saveSale(e){
     result.profit;
 
 
-  /* ==========================================
-     VALIDATE PRODUCT MASTER
-  ========================================== */
-
   if(masterSalePrice<=0){
 
     toast(
@@ -2671,41 +2562,53 @@ async function saveSale(e){
   }
 
 
-  /* ==========================================
-     UPDATE DISPLAY
-  ========================================== */
+  /*
+    Update display from Product Master.
+  */
 
-  salePrice.value=
+  document.getElementById(
+    "salePrice"
+  ).value=
     masterSalePrice.toFixed(2);
 
-  salePurchasePrice.value=
+  document.getElementById(
+    "salePurchasePrice"
+  ).value=
     masterPurchasePrice.toFixed(2);
 
-  saleAmt.value=
+  document.getElementById(
+    "saleAmt"
+  ).value=
     amt.toFixed(2);
 
-  saleProfit.value=
+  document.getElementById(
+    "saleProfit"
+  ).value=
     profit.toFixed(2);
 
 
-  /* ==========================================
-     PAYMENT
-  ========================================== */
-
   let paid=
     Number(
-      salePaid.value||0
+      document.getElementById(
+        "salePaid"
+      ).value||0
     );
 
 
-  if(salePayment.value==="cash"){
+  const paymentMode=
+    document.getElementById(
+      "salePayment"
+    ).value;
+
+
+  if(paymentMode==="cash"){
 
     paid=amt;
 
   }
 
 
-  if(salePayment.value==="credit"){
+  if(paymentMode==="credit"){
 
     paid=0;
 
@@ -2738,26 +2641,17 @@ async function saveSale(e){
         : "CREDIT";
 
 
-  /* ==========================================
-     CREATE BILL ID
-  ========================================== */
-
   const id=
     "S-"+Date.now();
 
 
-  /* ==========================================
-     PDF
-  ========================================== */
-
   let fileUrl="";
 
+
   const file=
-    document
-      .getElementById(
-        "saleFile"
-      )
-      .files[0];
+    document.getElementById(
+      "saleFile"
+    ).files[0];
 
 
   if(file){
@@ -2773,10 +2667,6 @@ async function saveSale(e){
   }
 
 
-  /* ==========================================
-     SAVE SALE
-  ========================================== */
-
   const {error}=
     await db
       .from("bills")
@@ -2786,16 +2676,26 @@ async function saveSale(e){
 
         type:"sale",
 
-        no:saleNo.value,
+        no:
+          document.getElementById(
+            "saleNo"
+          ).value,
 
-        date:saleDate.value,
+        date:
+          document.getElementById(
+            "saleDate"
+          ).value,
 
-        party:saleParty.value,
+        party:
+          document.getElementById(
+            "saleParty"
+          ).value,
 
         /*
           EXACT Product Master name
         */
-        prod:masterProduct.name,
+        prod:
+          masterProduct.name,
 
         qty,
 
@@ -2806,13 +2706,16 @@ async function saveSale(e){
         credit,
 
         payment_mode:
-          salePayment.value,
+          paymentMode,
 
         status,
 
         file:fileUrl,
 
-        notes:saleNotes.value,
+        notes:
+          document.getElementById(
+            "saleNotes"
+          ).value,
 
         created_by:user.id
 
@@ -2833,10 +2736,6 @@ async function saveSale(e){
   }
 
 
-  /* ==========================================
-     UPDATE STOCK
-  ========================================== */
-
   await updateStock(
     masterProduct.name,
     -qty
@@ -2844,7 +2743,7 @@ async function saveSale(e){
 
 
   toast(
-    `Sale saved successfully — Profit ${money(profit)}`
+    `Sale saved — Profit ${money(profit)}`
   );
 
 
@@ -2896,32 +2795,46 @@ function purchasePage(main){
 
         </div>
 
+
         <div class="field">
 
           <label>Product</label>
 
-          <input
+          <select
             id="purchaseProduct"
             required
-            list="productList2"
           >
 
-          <datalist id="productList2">
+            <option value="">
+              Select Product
+            </option>
 
             ${
               cache.products.map(
-                x=>
-                  `<option value="${esc(x.name)}">`
+                x=>`
+                <option value="${esc(x.name)}">
+                  ${esc(x.name)}
+                </option>
+                `
               ).join("")
             }
 
-          </datalist>
+          </select>
 
         </div>
+
 
         ${input(
           "Quantity",
           "purchaseQty",
+          "0",
+          "number",
+          true
+        )}
+
+        ${input(
+          "Purchase Price / kg",
+          "purchasePrice",
           "0",
           "number"
         )}
@@ -3015,17 +2928,11 @@ function purchasePage(main){
               <tr>
 
                 <td>${esc(x.date)}</td>
-
                 <td>${esc(x.no)}</td>
-
                 <td>${esc(x.party)}</td>
-
                 <td>${esc(x.prod)}</td>
-
                 <td>${x.qty||0}</td>
-
                 <td>${money(x.amt)}</td>
-
                 <td>${money(x.paid)}</td>
 
               </tr>
@@ -3052,50 +2959,52 @@ function purchasePage(main){
   const recalcPurchase=()=>{
 
     const name=
-      String(
-        document
-          .getElementById(
-            "purchaseProduct"
-          )
-          ?.value||""
-      )
-      .trim()
-      .toLowerCase();
+      document.getElementById(
+        "purchaseProduct"
+      ).value;
 
     const qty=
       Number(
-        document
-          .getElementById(
-            "purchaseQty"
-          )
-          ?.value||0
+        document.getElementById(
+          "purchaseQty"
+        ).value||0
       );
 
-    const product=
-      cache.products.find(
-        p=>
-          String(p.name||"")
-            .trim()
-            .toLowerCase()===name
+
+    const result=
+      calculateProductPurchase(
+        name,
+        qty
       );
 
-    const purchasePrice=
-      Number(
-        product?.purchase_price||0
+
+    const priceEl=
+      document.getElementById(
+        "purchasePrice"
       );
 
-    const amount=
-      purchasePrice*qty;
-
-
-    if(product){
-
+    const amountEl=
       document.getElementById(
         "purchaseAmt"
-      ).value=
-        amount.toFixed(2);
+      );
+
+
+    if(!result.product){
+
+      priceEl.value="0";
+
+      amountEl.value="0";
+
+      return;
 
     }
+
+
+    priceEl.value=
+      result.purchasePrice.toFixed(2);
+
+    amountEl.value=
+      result.amount.toFixed(2);
 
   };
 
@@ -3105,9 +3014,10 @@ function purchasePage(main){
       "purchaseProduct"
     )
     .addEventListener(
-      "input",
+      "change",
       recalcPurchase
     );
+
 
   document
     .getElementById(
@@ -3118,27 +3028,173 @@ function purchasePage(main){
       recalcPurchase
     );
 
+
+  document.getElementById(
+    "purchasePrice"
+  ).readOnly=true;
+
+  document.getElementById(
+    "purchaseAmt"
+  ).readOnly=true;
+
+
+  document
+    .getElementById(
+      "purchasePayment"
+    )
+    .addEventListener(
+      "change",
+      ()=>{
+
+        const amt=
+          Number(
+            document.getElementById(
+              "purchaseAmt"
+            ).value||0
+          );
+
+        const mode=
+          document.getElementById(
+            "purchasePayment"
+          ).value;
+
+
+        document.getElementById(
+          "purchasePaid"
+        ).value=
+          mode==="cash"
+            ? amt.toFixed(2)
+            : "0";
+
+      }
+    );
+
+
+  recalcPurchase();
+
 }
 
+
+/* =====================================================
+   SAVE PURCHASE
+===================================================== */
 
 async function savePurchase(e){
 
   e.preventDefault();
 
 
-  const amt=
+  const productName=
+    document.getElementById(
+      "purchaseProduct"
+    ).value.trim();
+
+
+  const qty=
     Number(
-      purchaseAmt.value||0
+      document.getElementById(
+        "purchaseQty"
+      ).value||0
     );
+
+
+  if(!productName){
+
+    toast(
+      "Please select a product"
+    );
+
+    return;
+
+  }
+
+
+  if(qty<=0){
+
+    toast(
+      "Enter a valid quantity"
+    );
+
+    return;
+
+  }
+
+
+  /*
+    Product Master is checked AGAIN
+    when saving.
+  */
+
+  const result=
+    calculateProductPurchase(
+      productName,
+      qty
+    );
+
+
+  if(!result.product){
+
+    toast(
+      "Product not found in Product Master"
+    );
+
+    return;
+
+  }
+
+
+  const masterProduct=
+    result.product;
+
+  const purchasePrice=
+    result.purchasePrice;
+
+  const amt=
+    result.amount;
+
+
+  if(purchasePrice<0){
+
+    toast(
+      "Purchase Price is invalid in Product Master"
+    );
+
+    return;
+
+  }
+
 
   let paid=
     Number(
-      purchasePaid.value||0
+      document.getElementById(
+        "purchasePaid"
+      ).value||0
     );
 
 
-  if(purchasePayment.value==="cash")
+  const paymentMode=
+    document.getElementById(
+      "purchasePayment"
+    ).value;
+
+
+  if(paymentMode==="cash")
     paid=amt;
+
+
+  if(paymentMode==="credit")
+    paid=0;
+
+
+  if(paid>amt){
+
+    toast(
+      "Paid amount cannot exceed total"
+    );
+
+    return;
+
+  }
 
 
   const id=
@@ -3149,11 +3205,9 @@ async function savePurchase(e){
 
 
   const file=
-    document
-      .getElementById(
-        "purchaseFile"
-      )
-      .files[0];
+    document.getElementById(
+      "purchaseFile"
+    ).files[0];
 
 
   if(file){
@@ -3169,6 +3223,21 @@ async function savePurchase(e){
   }
 
 
+  const credit=
+    Math.max(
+      0,
+      amt-paid
+    );
+
+
+  const status=
+    credit<=0
+      ? "PAID"
+      : paid>0
+        ? "PARTIAL"
+        : "CREDIT";
+
+
   const {error}=
     await db
       .from("bills")
@@ -3178,40 +3247,39 @@ async function savePurchase(e){
 
         type:"purchase",
 
-        no:purchaseNo.value,
+        no:
+          document.getElementById(
+            "purchaseNo"
+          ).value,
 
-        date:purchaseDate.value,
+        date:
+          document.getElementById(
+            "purchaseDate"
+          ).value,
 
-        party:purchaseParty.value,
+        party:
+          document.getElementById(
+            "purchaseParty"
+          ).value,
 
-        prod:purchaseProduct.value,
+        /*
+          Exact Product Master name
+        */
+        prod:
+          masterProduct.name,
 
-        qty:Number(
-          purchaseQty.value||0
-        ),
+        qty,
 
         amt,
 
         paid,
 
-        credit:
-          Math.max(
-            0,
-            amt-paid
-          ),
+        credit,
 
-        status:
-          Math.max(
-            0,
-            amt-paid
-          )<=0
-            ? "PAID"
-            : paid>0
-              ? "PARTIAL"
-              : "CREDIT",
+        status,
 
         payment_mode:
-          purchasePayment.value,
+          paymentMode,
 
         file:fileUrl,
 
@@ -3230,16 +3298,15 @@ async function savePurchase(e){
 
 
   await updateStock(
-    purchaseProduct.value,
-    Number(
-      purchaseQty.value||0
-    )
+    masterProduct.name,
+    qty
   );
 
 
   toast(
     "Purchase saved"
   );
+
 
   await loadAll();
 
@@ -3417,17 +3484,10 @@ function paymentsPage(main){
             <tr>
 
               <td>${esc(x.date)}</td>
-
               <td>${esc(x.party)}</td>
-
               <td>${esc(x.bill_id||"-")}</td>
-
               <td>${esc(x.mode)}</td>
-
-              <td>
-                <b>${money(x.amount)}</b>
-              </td>
-
+              <td><b>${money(x.amount)}</b></td>
               <td>${esc(x.notes||"")}</td>
 
             </tr>
@@ -3459,7 +3519,9 @@ async function savePayment(e){
 
   const amount=
     Number(
-      paymentAmount.value||0
+      document.getElementById(
+        "paymentAmount"
+      ).value||0
     );
 
 
@@ -3486,13 +3548,19 @@ async function savePayment(e){
         id,
 
         date:
-          paymentDate.value,
+          document.getElementById(
+            "paymentDate"
+          ).value,
 
         party:
-          paymentParty.value,
+          document.getElementById(
+            "paymentParty"
+          ).value,
 
         bill_id:
-          paymentBill.value||null,
+          document.getElementById(
+            "paymentBill"
+          ).value||null,
 
         type:
           "received",
@@ -3500,10 +3568,14 @@ async function savePayment(e){
         amount,
 
         mode:
-          paymentMode.value,
+          document.getElementById(
+            "paymentMode"
+          ).value,
 
         notes:
-          paymentNotes.value
+          document.getElementById(
+            "paymentNotes"
+          ).value
 
       });
 
@@ -3517,13 +3589,17 @@ async function savePayment(e){
   }
 
 
-  if(paymentBill.value){
+  const paymentBillId=
+    document.getElementById(
+      "paymentBill"
+    ).value;
+
+
+  if(paymentBillId){
 
     const bill=
       cache.bills.find(
-        x=>
-          x.id===
-          paymentBill.value
+        x=>x.id===paymentBillId
       );
 
 
@@ -3585,9 +3661,7 @@ function partiesPage(main){
 
   <div class="page-title">
 
-    <h2>
-      Parties / Buyers
-    </h2>
+    <h2>Parties / Buyers</h2>
 
   </div>
 
@@ -3800,26 +3874,38 @@ async function saveBuyer(e){
           "B-"+Date.now(),
 
         name:
-          buyerName.value,
+          document.getElementById(
+            "buyerName"
+          ).value,
 
         phone:
-          buyerPhone.value,
+          document.getElementById(
+            "buyerPhone"
+          ).value,
 
         prod:
-          buyerProduct.value,
+          document.getElementById(
+            "buyerProduct"
+          ).value,
 
         demand:
           Number(
-            buyerDemand.value||0
+            document.getElementById(
+              "buyerDemand"
+            ).value||0
           ),
 
         cycle:
           Number(
-            buyerCycle.value||30
+            document.getElementById(
+              "buyerCycle"
+            ).value||30
           ),
 
         added:
-          buyerAdded.value
+          document.getElementById(
+            "buyerAdded"
+          ).value
 
       });
 
@@ -4026,29 +4112,41 @@ async function saveProduct(e){
           "PR-"+Date.now(),
 
         name:
-          productName.value,
+          document.getElementById(
+            "productName"
+          ).value,
 
         unit:
-          productUnit.value,
+          document.getElementById(
+            "productUnit"
+          ).value,
 
         stock:
           Number(
-            productStock.value||0
+            document.getElementById(
+              "productStock"
+            ).value||0
           ),
 
         min_stock:
           Number(
-            productMin.value||0
+            document.getElementById(
+              "productMin"
+            ).value||0
           ),
 
         purchase_price:
           Number(
-            productPurchase.value||0
+            document.getElementById(
+              "productPurchase"
+            ).value||0
           ),
 
         sale_price:
           Number(
-            productSale.value||0
+            document.getElementById(
+              "productSale"
+            ).value||0
           )
 
       });
@@ -4160,9 +4258,7 @@ function stockPage(main){
 
               <tr>
 
-                <td>
-                  ${esc(x.date)}
-                </td>
+                <td>${esc(x.date)}</td>
 
                 <td>
 
@@ -4184,21 +4280,13 @@ function stockPage(main){
 
                 </td>
 
-                <td>
-                  ${esc(x.party)}
-                </td>
+                <td>${esc(x.party)}</td>
 
-                <td>
-                  ${esc(x.prod)}
-                </td>
+                <td>${esc(x.prod)}</td>
 
-                <td>
-                  ${x.qty||0}
-                </td>
+                <td>${x.qty||0}</td>
 
-                <td>
-                  ${money(x.amt)}
-                </td>
+                <td>${money(x.amt)}</td>
 
               </tr>
 
@@ -4299,17 +4387,11 @@ function expensesPage(main){
 
             <tr>
 
-              <td>
-                ${esc(x.date)}
-              </td>
+              <td>${esc(x.date)}</td>
 
-              <td>
-                ${esc(x.category)}
-              </td>
+              <td>${esc(x.category)}</td>
 
-              <td>
-                ${esc(x.description)}
-              </td>
+              <td>${esc(x.description)}</td>
 
               <td>
                 <b>${money(x.amount)}</b>
@@ -4351,17 +4433,25 @@ async function saveExpense(e){
           "EXP-"+Date.now(),
 
         date:
-          expenseDate.value,
+          document.getElementById(
+            "expenseDate"
+          ).value,
 
         category:
-          expenseCategory.value,
+          document.getElementById(
+            "expenseCategory"
+          ).value,
 
         description:
-          expenseDescription.value,
+          document.getElementById(
+            "expenseDescription"
+          ).value,
 
         amount:
           Number(
-            expenseAmount.value||0
+            document.getElementById(
+              "expenseAmount"
+            ).value||0
           )
 
       });
@@ -4573,10 +4663,7 @@ function editBill(id){
 
           <label>Type</label>
 
-          <select
-            id="editBillType"
-            class="input"
-          >
+          <select id="editBillType">
 
             <option
               value="sale"
@@ -4640,47 +4727,32 @@ function editBill(id){
 
         <div class="field">
 
-          <label>
-            Payment Mode
-          </label>
+          <label>Payment Mode</label>
 
-          <select
-            id="editBillMode"
-            class="input"
-          >
+          <select id="editBillMode">
 
-            <option
-              value="cash"
-              ${bill.payment_mode==="cash"?"selected":""}
-            >
+            <option value="cash"
+              ${bill.payment_mode==="cash"?"selected":""}>
               Cash
             </option>
 
-            <option
-              value="bank"
-              ${bill.payment_mode==="bank"?"selected":""}
-            >
+            <option value="bank"
+              ${bill.payment_mode==="bank"?"selected":""}>
               Bank
             </option>
 
-            <option
-              value="upi"
-              ${bill.payment_mode==="upi"?"selected":""}
-            >
+            <option value="upi"
+              ${bill.payment_mode==="upi"?"selected":""}>
               UPI
             </option>
 
-            <option
-              value="credit"
-              ${bill.payment_mode==="credit"?"selected":""}
-            >
+            <option value="credit"
+              ${bill.payment_mode==="credit"?"selected":""}>
               Credit
             </option>
 
-            <option
-              value="partial"
-              ${bill.payment_mode==="partial"?"selected":""}
-            >
+            <option value="partial"
+              ${bill.payment_mode==="partial"?"selected":""}>
               Partial
             </option>
 
@@ -4695,16 +4767,9 @@ function editBill(id){
 
           <input
             id="editBillStatus"
-            value="${esc(
-              bill.status||""
-            )}"
+            value="${esc(bill.status||"")}"
             readonly
           >
-
-          <div class="hint">
-            Status is calculated automatically
-            from Paid and Amount.
-          </div>
 
         </div>
 
@@ -5158,8 +5223,6 @@ async function saveBillEdit(e,id){
   }
 
 
-  /* Reverse old stock */
-
   if(oldBill.type==="purchase")
     await updateStock(
       oldProduct,
@@ -5172,8 +5235,6 @@ async function saveBillEdit(e,id){
       oldQty
     );
 
-
-  /* Apply new stock */
 
   if(type==="purchase")
     await updateStock(
@@ -5385,9 +5446,7 @@ function input(
 
   <div class="field">
 
-    <label>
-      ${label}
-    </label>
+    <label>${label}</label>
 
     <input
       id="${id}"
@@ -5409,9 +5468,7 @@ function billRow(x){
 
   <tr>
 
-    <td>
-      ${esc(x.date)}
-    </td>
+    <td>${esc(x.date)}</td>
 
     <td>
 
@@ -5433,21 +5490,13 @@ function billRow(x){
 
     </td>
 
-    <td>
-      ${esc(x.party)}
-    </td>
+    <td>${esc(x.party)}</td>
 
-    <td>
-      ${esc(x.prod)}
-    </td>
+    <td>${esc(x.prod)}</td>
 
-    <td>
-      ${money(x.amt)}
-    </td>
+    <td>${money(x.amt)}</td>
 
-    <td>
-      ${esc(x.payment_mode||"")}
-    </td>
+    <td>${esc(x.payment_mode||"")}</td>
 
   </tr>
 
@@ -5462,29 +5511,17 @@ function saleTableRow(x){
 
   <tr>
 
-    <td>
-      ${esc(x.date)}
-    </td>
+    <td>${esc(x.date)}</td>
 
-    <td>
-      ${esc(x.no)}
-    </td>
+    <td>${esc(x.no)}</td>
 
-    <td>
-      ${esc(x.party)}
-    </td>
+    <td>${esc(x.party)}</td>
 
-    <td>
-      ${esc(x.prod)}
-    </td>
+    <td>${esc(x.prod)}</td>
 
-    <td>
-      ${money(x.amt)}
-    </td>
+    <td>${money(x.amt)}</td>
 
-    <td>
-      ${money(x.paid)}
-    </td>
+    <td>${money(x.paid)}</td>
 
     <td>
 
@@ -5550,9 +5587,7 @@ function ledgerRow(x){
 
   <tr>
 
-    <td>
-      ${esc(x.date)}
-    </td>
+    <td>${esc(x.date)}</td>
 
     <td>
 
