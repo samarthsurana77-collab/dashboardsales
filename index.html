@@ -409,21 +409,121 @@ const today=()=>new Date().toISOString().slice(0,10);
 
 const money=n =>
 "₹"+Number(n||0).toLocaleString(
-"en-IN",
-{maximumFractionDigits:2}
+  "en-IN",
+  {maximumFractionDigits:2}
 );
 
 const esc=s =>
 String(s??"").replace(
-/[&<>"']/g,
-m=>({
-"&":"&amp;",
-"<":"&lt;",
-">":"&gt;",
-'"':"&quot;",
-"'":"&#39;"
-}[m])
+  /[&<>"']/g,
+  m=>({
+    "&":"&amp;",
+    "<":"&lt;",
+    ">":"&gt;",
+    '"':"&quot;",
+    "'":"&#39;"
+  }[m])
 );
+
+
+/* =====================================================
+   PRODUCT MASTER PROFIT HELPERS
+===================================================== */
+
+function normalizeProductName(value){
+
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g," ")
+    .replace(/\s+/g," ")
+    .trim();
+
+}
+
+
+function findProductByName(value){
+
+  const key=normalizeProductName(value);
+
+  if(!key) return null;
+
+  /*
+    FIRST:
+    Exact Product Master name
+  */
+
+  const exact=cache.products.find(
+    p=>normalizeProductName(p.name)===key
+  );
+
+  if(exact) return exact;
+
+  /*
+    SECOND:
+    Tolerant matching for minor naming differences
+  */
+
+  return cache.products.find(p=>{
+
+    const productKey=
+      normalizeProductName(p.name);
+
+    return(
+      productKey.includes(key) ||
+      key.includes(productKey)
+    );
+
+  }) || null;
+
+}
+
+
+function calculateProductProfit(
+  productName,
+  quantity
+){
+
+  const product=
+    findProductByName(productName);
+
+  if(!product){
+
+    return{
+      product:null,
+      purchasePrice:0,
+      salePrice:0,
+      amount:0,
+      profit:0
+    };
+
+  }
+
+  const qty=
+    Number(quantity||0);
+
+  const purchasePrice=
+    Number(product.purchase_price||0);
+
+  const salePrice=
+    Number(product.sale_price||0);
+
+  const amount=
+    salePrice*qty;
+
+  const profit=
+    (salePrice-purchasePrice)*qty;
+
+  return{
+    product,
+    purchasePrice,
+    salePrice,
+    amount,
+    profit
+  };
+
+}
+
 
 function toast(message){
 
@@ -486,10 +586,10 @@ async function boot(){
 async function loadProfile(){
 
   const {data,error}=await db
-  .from("profiles")
-  .select("*")
-  .eq("id",user.id)
-  .single();
+    .from("profiles")
+    .select("*")
+    .eq("id",user.id)
+    .single();
 
   if(error){
 
@@ -502,8 +602,10 @@ async function loadProfile(){
 
   profile=data;
 
-  // Staff must always start in the entry area, never the admin dashboard.
-  active = profile.role === "admin" ? "dashboard" : "sales";
+  active =
+    profile.role === "admin"
+      ? "dashboard"
+      : "sales";
 
   renderApp();
 
@@ -592,15 +694,16 @@ function showLogin(msg=""){
 
     e.preventDefault();
 
-    const {error}=await db.auth.signInWithPassword({
+    const {error}=
+      await db.auth.signInWithPassword({
 
-      email:
-      document.getElementById("email").value,
+        email:
+          document.getElementById("email").value,
 
-      password:
-      document.getElementById("password").value
+        password:
+          document.getElementById("password").value
 
-    });
+      });
 
     if(error){
 
@@ -656,7 +759,7 @@ function renderApp(){
   `;
 
   document.getElementById("logout").onclick=
-  ()=>db.auth.signOut();
+    ()=>db.auth.signOut();
 
   renderNav();
 
@@ -666,19 +769,64 @@ function renderApp(){
 
 
 function renderNav(){
+
   let items;
+
   if(profile.role==="admin"){
-    items=[["dashboard","Dashboard"],["sales","Sales"],["purchases","Purchases"],["payments","Payments"],["parties","Parties"],["products","Products"],["stock","Stock"],["expenses","Expenses"],["ledger","Ledger"]];
+
+    items=[
+      ["dashboard","Dashboard"],
+      ["sales","Sales"],
+      ["purchases","Purchases"],
+      ["payments","Payments"],
+      ["parties","Parties"],
+      ["products","Products"],
+      ["stock","Stock"],
+      ["expenses","Expenses"],
+      ["ledger","Ledger"]
+    ];
+
   }else{
-    items=[["sales","Enter Sale"],["purchases","Enter Purchase"],["payments","Payments"],["parties","Buyers & Demand"],["ledger","Bill Ledger"]];
+
+    items=[
+      ["sales","Enter Sale"],
+      ["purchases","Enter Purchase"],
+      ["payments","Payments"],
+      ["parties","Buyers & Demand"],
+      ["ledger","Bill Ledger"]
+    ];
+
   }
-  document.getElementById("nav").innerHTML=items.map(([id,label])=>`<button class="${active===id?"active":""}" onclick="go('${id}')">${label}</button>`).join("");
+
+  document.getElementById("nav").innerHTML=
+    items.map(
+      ([id,label])=>
+        `<button
+          class="${active===id?"active":""}"
+          onclick="go('${id}')"
+        >
+          ${label}
+        </button>`
+    ).join("");
+
 }
+
 
 function go(page){
 
-  const adminOnly=["dashboard","products","stock","expenses"];
-  if(profile?.role !== "admin" && adminOnly.includes(page)) page="sales";
+  const adminOnly=[
+    "dashboard",
+    "products",
+    "stock",
+    "expenses"
+  ];
+
+  if(
+    profile?.role !== "admin" &&
+    adminOnly.includes(page)
+  ){
+    page="sales";
+  }
 
   active=page;
 
@@ -691,16 +839,34 @@ function go(page){
 
 function renderPage(){
 
-  const main=document.getElementById("main");
+  const main=
+    document.getElementById("main");
 
-  if(profile?.role !== "admin" && active === "dashboard") {
+  if(
+    profile?.role !== "admin" &&
+    active === "dashboard"
+  ){
+
     active="sales";
+
     renderNav();
+
   }
 
-  if(profile?.role !== "admin" && ["dashboard","products","stock","expenses"].includes(active)){
+  if(
+    profile?.role !== "admin" &&
+    [
+      "dashboard",
+      "products",
+      "stock",
+      "expenses"
+    ].includes(active)
+  ){
+
     active="sales";
+
     renderNav();
+
   }
 
   if(active==="dashboard")
@@ -786,234 +952,424 @@ async function loadAll(){
 
 function dashboardPage(main){
 
-  const allBills = cache.bills || [];
-  const allPayments = cache.payments || [];
-  const allExpenses = cache.expenses || [];
-  const allProducts = cache.products || [];
-  const allBuyers = cache.buyers || [];
+  const allBills=cache.bills||[];
+  const allPayments=cache.payments||[];
+  const allExpenses=cache.expenses||[];
+  const allProducts=cache.products||[];
+  const allBuyers=cache.buyers||[];
 
-  const dateKey = v => String(v || "").slice(0,10);
+  const dateKey=
+    v=>String(v||"").slice(0,10);
 
-  const matchesRange = (value, range) => {
-    const key = dateKey(value);
-    if(!key) return false;
+  const matchesRange=(value,range)=>{
 
-    const now = new Date();
-    const localToday =
-      `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`;
+    const key=dateKey(value);
 
-    const base = new Date(`${localToday}T00:00:00`);
+    if(!key)return false;
 
-    if(range==="today") return key===localToday;
+    const now=new Date();
+
+    const localToday=
+      `${now.getFullYear()}-${String(
+        now.getMonth()+1
+      ).padStart(2,"0")}-${String(
+        now.getDate()
+      ).padStart(2,"0")}`;
+
+    const base=
+      new Date(`${localToday}T00:00:00`);
+
+    if(range==="today")
+      return key===localToday;
 
     if(range==="yesterday"){
+
       const d=new Date(base);
+
       d.setDate(d.getDate()-1);
-      return key===`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+
+      return key===
+        `${d.getFullYear()}-${String(
+          d.getMonth()+1
+        ).padStart(2,"0")}-${String(
+          d.getDate()
+        ).padStart(2,"0")}`;
+
     }
 
     if(range==="week"){
+
       const start=new Date(base);
+
       const day=start.getDay();
-      start.setDate(start.getDate()-(day===0?6:day-1));
-      return new Date(`${key}T00:00:00`)>=start && new Date(`${key}T00:00:00`)<=base;
+
+      start.setDate(
+        start.getDate()-
+        (day===0?6:day-1)
+      );
+
+      return(
+        new Date(`${key}T00:00:00`)>=start &&
+        new Date(`${key}T00:00:00`)<=base
+      );
+
     }
 
-    if(range==="month"){
-      return key.slice(0,7)===localToday.slice(0,7);
-    }
+    if(range==="month")
+      return key.slice(0,7)===
+        localToday.slice(0,7);
 
-    if(range==="year"){
-      return key.slice(0,4)===localToday.slice(0,4);
-    }
+    if(range==="year")
+      return key.slice(0,4)===
+        localToday.slice(0,4);
 
     return true;
+
   };
 
-  const selectedRange = window.dashboardRange || "today";
-  window.dashboardRange = selectedRange;
 
-  const setRange = range => {
-    window.dashboardRange = range;
-    dashboardPage(document.getElementById("main"));
-  };
+  const selectedRange=
+    window.dashboardRange||"today";
 
-  const todayBills = allBills.filter(x=>matchesRange(x.date,"today"));
-  const periodBills = allBills.filter(x=>matchesRange(x.date,selectedRange));
+  window.dashboardRange=
+    selectedRange;
 
-  const sum = (arr,field) =>
-    arr.reduce((a,x)=>a+Number(x[field]||0),0);
 
-  const salesOf = arr =>
-    sum(arr.filter(x=>x.type==="sale"),"amt");
-
-  const purchasesOf = arr =>
-    sum(arr.filter(x=>x.type==="purchase"),"amt");
-
-  const todaySales = salesOf(todayBills);
-  const todayPurchases = purchasesOf(todayBills);
-
-  const todayPayments = sum(
-    allPayments.filter(x=>matchesRange(x.date,"today")),
-    "amount"
-  );
-
-  const todayExpenses = sum(
-    allExpenses.filter(x=>matchesRange(x.date,"today")),
-    "amount"
-  );
-
-  const periodSales = salesOf(periodBills);
-  const periodPurchases = purchasesOf(periodBills);
-
-  const periodPayments = sum(
-    allPayments.filter(x=>matchesRange(x.date,selectedRange)),
-    "amount"
-  );
-
-  const periodExpenses = sum(
-    allExpenses.filter(x=>matchesRange(x.date,selectedRange)),
-    "amount"
-  );
-
-  const totalSales = salesOf(allBills);
-  const totalPurchases = purchasesOf(allBills);
-  const totalPayments = sum(allPayments,"amount");
-  const totalExpenses = sum(allExpenses,"amount");
-
-  const customerOutstanding =
-    allBills
-    .filter(x=>x.type==="sale")
-    .reduce(
-      (a,x)=>a+Math.max(
-        0,
-        Number(x.amt||0)-Number(x.paid||0)
-      ),
+  const sum=(arr,field)=>
+    arr.reduce(
+      (a,x)=>a+Number(x[field]||0),
       0
     );
 
-  const supplierOutstanding =
-    allBills
-    .filter(x=>x.type==="purchase")
-    .reduce(
-      (a,x)=>a+Math.max(
-        0,
-        Number(x.amt||0)-Number(x.paid||0)
-      ),
-      0
+
+  const salesOf=arr=>
+    sum(
+      arr.filter(x=>x.type==="sale"),
+      "amt"
     );
 
-  // PROFIT = (SALE PRICE - PURCHASE PRICE) x SOLD QUANTITY
-  // Expenses, payments and purchase bills do NOT change this profit figure.
-  const normalizeProductName = value => String(value||"")
-    .trim().toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
 
-  const findProductForProfit = value => {
-    const key=normalizeProductName(value);
-    if(!key) return null;
-    return allProducts.find(p=>normalizeProductName(p.name)===key)
-      || allProducts.find(p=>normalizeProductName(p.name).includes(key) || key.includes(normalizeProductName(p.name)))
-      || null;
+  const purchasesOf=arr=>
+    sum(
+      arr.filter(x=>x.type==="purchase"),
+      "amt"
+    );
+
+
+  const todayBills=
+    allBills.filter(
+      x=>matchesRange(x.date,"today")
+    );
+
+  const periodBills=
+    allBills.filter(
+      x=>matchesRange(
+        x.date,
+        selectedRange
+      )
+    );
+
+
+  const todaySales=
+    salesOf(todayBills);
+
+  const todayPurchases=
+    purchasesOf(todayBills);
+
+
+  const todayPayments=
+    sum(
+      allPayments.filter(
+        x=>matchesRange(
+          x.date,
+          "today"
+        )
+      ),
+      "amount"
+    );
+
+
+  const todayExpenses=
+    sum(
+      allExpenses.filter(
+        x=>matchesRange(
+          x.date,
+          "today"
+        )
+      ),
+      "amount"
+    );
+
+
+  const periodSales=
+    salesOf(periodBills);
+
+  const periodPurchases=
+    purchasesOf(periodBills);
+
+
+  const periodPayments=
+    sum(
+      allPayments.filter(
+        x=>matchesRange(
+          x.date,
+          selectedRange
+        )
+      ),
+      "amount"
+    );
+
+
+  const periodExpenses=
+    sum(
+      allExpenses.filter(
+        x=>matchesRange(
+          x.date,
+          selectedRange
+        )
+      ),
+      "amount"
+    );
+
+
+  const totalSales=
+    salesOf(allBills);
+
+  const totalPurchases=
+    purchasesOf(allBills);
+
+  const totalPayments=
+    sum(allPayments,"amount");
+
+  const totalExpenses=
+    sum(allExpenses,"amount");
+
+
+  const customerOutstanding=
+    allBills
+      .filter(x=>x.type==="sale")
+      .reduce(
+        (a,x)=>
+          a+
+          Math.max(
+            0,
+            Number(x.amt||0)-
+            Number(x.paid||0)
+          ),
+        0
+      );
+
+
+  const supplierOutstanding=
+    allBills
+      .filter(x=>x.type==="purchase")
+      .reduce(
+        (a,x)=>
+          a+
+          Math.max(
+            0,
+            Number(x.amt||0)-
+            Number(x.paid||0)
+          ),
+        0
+      );
+
+
+  /* ==========================================
+     PROFIT
+     
+     Product Master is the ONLY source
+     for purchase price and sale price.
+  ========================================== */
+
+  const productProfit=bill=>{
+
+    const result=
+      calculateProductProfit(
+        bill.prod,
+        bill.qty
+      );
+
+    return result.profit;
+
   };
 
-  const productProfit = (bill) => {
-    const product=findProductForProfit(bill.prod);
-    const purchasePrice=Number(product?.purchase_price||0);
-    const salePrice=Number(product?.sale_price||0);
-    const qty=Number(bill.qty||0);
-    return (salePrice-purchasePrice)*qty;
-  };
 
-  const profitFor = arr =>
+  const profitFor=arr=>
     arr
-    .filter(x=>x.type==="sale")
-    .reduce((a,x)=>a+productProfit(x),0);
+      .filter(x=>x.type==="sale")
+      .reduce(
+        (a,x)=>
+          a+productProfit(x),
+        0
+      );
 
-  const todayProfit = profitFor(todayBills);
-  const periodProfit = profitFor(periodBills);
-  const totalProfit = profitFor(allBills);
 
-  const stockValue =
+  const todayProfit=
+    profitFor(todayBills);
+
+  const periodProfit=
+    profitFor(periodBills);
+
+  const totalProfit=
+    profitFor(allBills);
+
+
+  const stockValue=
     allProducts.reduce(
-      (a,x)=>a+
+      (a,x)=>
+        a+
         Number(x.stock||0)*
         Number(x.purchase_price||0),
       0
     );
 
-  const lowStock = allProducts.filter(x =>
-    Number(x.stock||0) <= Number(x.min_stock||0)
-  );
 
-  const rangeLabel = {
+  const lowStock=
+    allProducts.filter(
+      x=>
+        Number(x.stock||0)<=
+        Number(x.min_stock||0)
+    );
+
+
+  const rangeLabel={
+
     today:"Today",
     yesterday:"Yesterday",
     week:"This Week",
     month:"This Month",
     year:"This Year",
     all:"All Time"
-  }[selectedRange] || "Today";
 
-  const recentBills = [...allBills]
-    .sort((a,b)=>
-      dateKey(b.date).localeCompare(dateKey(a.date))
-    )
-    .slice(0,15);
+  }[selectedRange]||"Today";
+
+
+  const recentBills=
+    [...allBills]
+      .sort(
+        (a,b)=>
+          dateKey(b.date)
+          .localeCompare(
+            dateKey(a.date)
+          )
+      )
+      .slice(0,15);
+
 
   const productSales={};
 
   allBills
     .filter(x=>x.type==="sale")
     .forEach(x=>{
-      const name=x.prod||"Unknown";
-      productSales[name]=(productSales[name]||0)+Number(x.amt||0);
+
+      const name=
+        x.prod||"Unknown";
+
+      productSales[name]=
+        (productSales[name]||0)+
+        Number(x.amt||0);
+
     });
 
-  const topProducts=Object.entries(productSales)
-    .sort((a,b)=>b[1]-a[1])
-    .slice(0,5);
+
+  const topProducts=
+    Object.entries(productSales)
+      .sort((a,b)=>b[1]-a[1])
+      .slice(0,5);
+
 
   const customerSales={};
 
   allBills
     .filter(x=>x.type==="sale")
     .forEach(x=>{
-      const name=x.party||"Unknown";
-      customerSales[name]=(customerSales[name]||0)+Number(x.amt||0);
+
+      const name=
+        x.party||"Unknown";
+
+      customerSales[name]=
+        (customerSales[name]||0)+
+        Number(x.amt||0);
+
     });
 
-  const topCustomers=Object.entries(customerSales)
-    .sort((a,b)=>b[1]-a[1])
-    .slice(0,5);
 
-  // Money received = money paid on sales made today + later payment entries today.
-  // This avoids counting a later payment twice.
-  const saleMoneyReceivedToday = todayBills
-    .filter(x=>x.type==="sale")
-    .reduce((a,x)=>a+Number(x.paid||0),0);
+  const topCustomers=
+    Object.entries(customerSales)
+      .sort((a,b)=>b[1]-a[1])
+      .slice(0,5);
 
-  const laterPaymentsReceivedToday = allPayments
-    .filter(x=>matchesRange(x.date,"today") && String(x.type||"").toLowerCase()==="received")
-    .reduce((a,x)=>a+Number(x.amount||0),0);
 
-  const paymentReceivedToday = saleMoneyReceivedToday + laterPaymentsReceivedToday;
+  const saleMoneyReceivedToday=
+    todayBills
+      .filter(x=>x.type==="sale")
+      .reduce(
+        (a,x)=>
+          a+Number(x.paid||0),
+        0
+      );
 
-  const paymentPaidToday = allPayments
-    .filter(x=>matchesRange(x.date,"today") && String(x.type||"").toLowerCase()==="paid")
-    .reduce((a,x)=>a+Number(x.amount||0),0);
 
-  const todayCashMovement =
-    paymentReceivedToday - paymentPaidToday - todayExpenses;
+  const laterPaymentsReceivedToday=
+    allPayments
+      .filter(
+        x=>
+          matchesRange(
+            x.date,
+            "today"
+          ) &&
+          String(x.type||"")
+            .toLowerCase()==="received"
+      )
+      .reduce(
+        (a,x)=>
+          a+Number(x.amount||0),
+        0
+      );
+
+
+  const paymentReceivedToday=
+    saleMoneyReceivedToday+
+    laterPaymentsReceivedToday;
+
+
+  const paymentPaidToday=
+    allPayments
+      .filter(
+        x=>
+          matchesRange(
+            x.date,
+            "today"
+          ) &&
+          String(x.type||"")
+            .toLowerCase()==="paid"
+      )
+      .reduce(
+        (a,x)=>
+          a+Number(x.amount||0),
+        0
+      );
+
+
+  const todayCashMovement=
+    paymentReceivedToday-
+    paymentPaidToday-
+    todayExpenses;
+
 
   main.innerHTML=`
 
   <div class="page-title">
 
     <div>
+
       <h2>Dashboard</h2>
+
       <div class="hint">
         Complete business overview & daily performance
       </div>
+
     </div>
 
     <div style="
@@ -1024,32 +1380,52 @@ function dashboardPage(main){
     ">
 
       <select
-        class="input"
-        onchange="window.dashboardRange=this.value;dashboardPage(document.getElementById('main'))"
+        onchange="
+          window.dashboardRange=this.value;
+          dashboardPage(document.getElementById('main'))
+        "
         style="min-width:145px"
       >
 
-        <option value="today" ${selectedRange==="today"?"selected":""}>
+        <option
+          value="today"
+          ${selectedRange==="today"?"selected":""}
+        >
           Today
         </option>
 
-        <option value="yesterday" ${selectedRange==="yesterday"?"selected":""}>
+        <option
+          value="yesterday"
+          ${selectedRange==="yesterday"?"selected":""}
+        >
           Yesterday
         </option>
 
-        <option value="week" ${selectedRange==="week"?"selected":""}>
+        <option
+          value="week"
+          ${selectedRange==="week"?"selected":""}
+        >
           This Week
         </option>
 
-        <option value="month" ${selectedRange==="month"?"selected":""}>
+        <option
+          value="month"
+          ${selectedRange==="month"?"selected":""}
+        >
           This Month
         </option>
 
-        <option value="year" ${selectedRange==="year"?"selected":""}>
+        <option
+          value="year"
+          ${selectedRange==="year"?"selected":""}
+        >
           This Year
         </option>
 
-        <option value="all" ${selectedRange==="all"?"selected":""}>
+        <option
+          value="all"
+          ${selectedRange==="all"?"selected":""}
+        >
           All Time
         </option>
 
@@ -1057,7 +1433,10 @@ function dashboardPage(main){
 
       <button
         class="btn"
-        onclick="loadAll();toast('Dashboard refreshed')"
+        onclick="
+          loadAll();
+          toast('Dashboard refreshed')
+        "
       >
         Refresh
       </button>
@@ -1101,7 +1480,10 @@ function dashboardPage(main){
 
     </div>
 
-    <div class="grid" style="margin-top:14px">
+    <div
+      class="grid"
+      style="margin-top:14px"
+    >
 
       ${metric(
         "Today's Expenses",
@@ -1123,7 +1505,10 @@ function dashboardPage(main){
 
     </div>
 
-    <div class="grid" style="margin-top:14px">
+    <div
+      class="grid"
+      style="margin-top:14px"
+    >
 
       ${metric(
         "Today's Bills",
@@ -1133,21 +1518,35 @@ function dashboardPage(main){
 
       ${metric(
         "Today's Sales Count",
-        todayBills.filter(x=>x.type==="sale").length,
+        todayBills.filter(
+          x=>x.type==="sale"
+        ).length,
         "Sales bills"
       )}
 
       ${metric(
         "Today's Purchase Count",
-        todayBills.filter(x=>x.type==="purchase").length,
+        todayBills.filter(
+          x=>x.type==="purchase"
+        ).length,
         "Purchase bills"
       )}
 
       ${metric(
         "Today's Activity",
-        todayBills.length +
-        allPayments.filter(x=>matchesRange(x.date,"today")).length +
-        allExpenses.filter(x=>matchesRange(x.date,"today")).length,
+        todayBills.length+
+        allPayments.filter(
+          x=>matchesRange(
+            x.date,
+            "today"
+          )
+        ).length+
+        allExpenses.filter(
+          x=>matchesRange(
+            x.date,
+            "today"
+          )
+        ).length,
         "Bills + payments + expenses"
       )}
 
@@ -1160,7 +1559,9 @@ function dashboardPage(main){
 
   <div class="section">
 
-    <h3>${rangeLabel.toUpperCase()} OVERVIEW</h3>
+    <h3>
+      ${rangeLabel.toUpperCase()} OVERVIEW
+    </h3>
 
     <div class="grid">
 
@@ -1190,7 +1591,10 @@ function dashboardPage(main){
 
     </div>
 
-    <div class="grid" style="margin-top:14px">
+    <div
+      class="grid"
+      style="margin-top:14px"
+    >
 
       ${metric(
         rangeLabel+" Profit",
@@ -1219,7 +1623,9 @@ function dashboardPage(main){
 
   <div class="section">
 
-    <h3>COMPLETE BUSINESS OVERVIEW</h3>
+    <h3>
+      COMPLETE BUSINESS OVERVIEW
+    </h3>
 
     <div class="grid">
 
@@ -1243,7 +1649,10 @@ function dashboardPage(main){
 
     </div>
 
-    <div class="grid" style="margin-top:14px">
+    <div
+      class="grid"
+      style="margin-top:14px"
+    >
 
       ${metric(
         "Customer Outstanding",
@@ -1271,7 +1680,10 @@ function dashboardPage(main){
 
     </div>
 
-    <div class="grid" style="margin-top:14px">
+    <div
+      class="grid"
+      style="margin-top:14px"
+    >
 
       ${metric(
         "Stock Value",
@@ -1310,7 +1722,10 @@ function dashboardPage(main){
 
     <div
       class="grid"
-      style="grid-template-columns:repeat(2,minmax(0,1fr));"
+      style="
+        grid-template-columns:
+        repeat(2,minmax(0,1fr));
+      "
     >
 
       <div class="card">
@@ -1320,10 +1735,13 @@ function dashboardPage(main){
         ${
           topProducts.length===0
           ?
-          `<div class="empty">No sales data yet.</div>`
+          `<div class="empty">
+            No sales data yet.
+          </div>`
           :
           `
           <div class="table-wrap">
+
             <table>
 
               <tr>
@@ -1333,14 +1751,24 @@ function dashboardPage(main){
 
               ${
                 topProducts.map(x=>`
+
                   <tr>
-                    <td>${esc(x[0])}</td>
-                    <td>${money(x[1])}</td>
+
+                    <td>
+                      ${esc(x[0])}
+                    </td>
+
+                    <td>
+                      ${money(x[1])}
+                    </td>
+
                   </tr>
+
                 `).join("")
               }
 
             </table>
+
           </div>
           `
         }
@@ -1355,10 +1783,13 @@ function dashboardPage(main){
         ${
           topCustomers.length===0
           ?
-          `<div class="empty">No customer sales data yet.</div>`
+          `<div class="empty">
+            No customer sales data yet.
+          </div>`
           :
           `
           <div class="table-wrap">
+
             <table>
 
               <tr>
@@ -1368,14 +1799,24 @@ function dashboardPage(main){
 
               ${
                 topCustomers.map(x=>`
+
                   <tr>
-                    <td>${esc(x[0])}</td>
-                    <td>${money(x[1])}</td>
+
+                    <td>
+                      ${esc(x[0])}
+                    </td>
+
+                    <td>
+                      ${money(x[1])}
+                    </td>
+
                   </tr>
+
                 `).join("")
               }
 
             </table>
+
           </div>
           `
         }
@@ -1419,11 +1860,14 @@ function dashboardPage(main){
             </tr>
 
             ${
-              lowStock.slice(0,15).map(p=>`
+              lowStock.slice(0,15).map(
+                p=>`
 
                 <tr>
 
-                  <td>${esc(p.name)}</td>
+                  <td>
+                    ${esc(p.name)}
+                  </td>
 
                   <td>
                     ${Number(p.stock||0)}
@@ -1436,14 +1880,17 @@ function dashboardPage(main){
                   </td>
 
                   <td>
+
                     <span class="pill red">
                       LOW STOCK
                     </span>
+
                   </td>
 
                 </tr>
 
-              `).join("")
+              `
+              ).join("")
             }
 
           </table>
@@ -1506,7 +1953,9 @@ function dashboardPage(main){
             </tr>
 
             ${
-              recentBills.map(billRow).join("")
+              recentBills
+                .map(billRow)
+                .join("")
             }
 
           </table>
@@ -1534,49 +1983,70 @@ function dashboardPage(main){
 
       <button
         class="btn"
-        onclick="active='sales';renderPage()"
+        onclick="
+          active='sales';
+          renderPage()
+        "
       >
         + New Sale
       </button>
 
       <button
         class="btn"
-        onclick="active='purchases';renderPage()"
+        onclick="
+          active='purchases';
+          renderPage()
+        "
       >
         + New Purchase
       </button>
 
       <button
         class="btn"
-        onclick="active='payments';renderPage()"
+        onclick="
+          active='payments';
+          renderPage()
+        "
       >
         + Payment
       </button>
 
       <button
         class="btn"
-        onclick="active='parties';renderPage()"
+        onclick="
+          active='parties';
+          renderPage()
+        "
       >
         + Customer
       </button>
 
       <button
         class="btn"
-        onclick="active='products';renderPage()"
+        onclick="
+          active='products';
+          renderPage()
+        "
       >
         + Product
       </button>
 
       <button
         class="btn"
-        onclick="active='expenses';renderPage()"
+        onclick="
+          active='expenses';
+          renderPage()
+        "
       >
         + Expense
       </button>
 
       <button
         class="btn"
-        onclick="active='calllist';renderPage()"
+        onclick="
+          active='calllist';
+          renderPage()
+        "
       >
         Who to Call
       </button>
@@ -1586,7 +2056,9 @@ function dashboardPage(main){
   </div>
 
   `;
+
 }
+
 
 function metric(label,value,small){
 
@@ -1594,11 +2066,17 @@ function metric(label,value,small){
 
   <div class="card metric">
 
-    <div class="label">${label}</div>
+    <div class="label">
+      ${label}
+    </div>
 
-    <div class="value">${value}</div>
+    <div class="value">
+      ${value}
+    </div>
 
-    <div class="small">${small}</div>
+    <div class="small">
+      ${small}
+    </div>
 
   </div>
 
@@ -1631,18 +2109,33 @@ function salesPage(main){
   <div class="card">
 
     <div class="notice">
-      A sale can be <b>Cash</b>, <b>Credit</b> or
-      <b>Partial Credit</b>. Later payments can be
-      recorded from the Payments section.
+
+      A sale can be
+      <b>Cash</b>,
+      <b>Credit</b> or
+      <b>Partial Credit</b>.
+
+      Later payments can be recorded
+      from the Payments section.
+
     </div>
 
     <form id="saleForm">
 
       <div class="formgrid">
 
-        ${input("Sale Bill No","saleNo","SALE-"+Date.now())}
+        ${input(
+          "Sale Bill No",
+          "saleNo",
+          "SALE-"+Date.now()
+        )}
 
-        ${input("Date","saleDate",today(),"date")}
+        ${input(
+          "Date",
+          "saleDate",
+          today(),
+          "date"
+        )}
 
         <div class="field">
 
@@ -1656,14 +2149,18 @@ function salesPage(main){
           >
 
           <datalist id="buyerList">
+
             ${
               cache.buyers.map(
-                x=>`<option value="${esc(x.name)}">`
+                x=>
+                  `<option value="${esc(x.name)}">`
               ).join("")
             }
+
           </datalist>
 
         </div>
+
 
         <div class="field">
 
@@ -1677,33 +2174,79 @@ function salesPage(main){
           >
 
           <datalist id="productList">
+
             ${
               cache.products.map(
-                x=>`<option value="${esc(x.name)}">`
+                x=>
+                  `<option value="${esc(x.name)}">`
               ).join("")
             }
+
           </datalist>
 
         </div>
 
-        ${input("Quantity","saleQty","0","number",true)}
 
-        ${input("Sale Price / kg","salePrice","0","number")}
+        ${input(
+          "Quantity",
+          "saleQty",
+          "0",
+          "number",
+          true
+        )}
 
-        ${input("Purchase Price / kg","salePurchasePrice","0","number")}
+        ${input(
+          "Sale Price / kg",
+          "salePrice",
+          "0",
+          "number"
+        )}
 
-        ${input("Total Amount","saleAmt","0","number",true)}
+        ${input(
+          "Purchase Price / kg",
+          "salePurchasePrice",
+          "0",
+          "number"
+        )}
 
-        ${input("Profit","saleProfit","0","number")}
+        ${input(
+          "Total Amount",
+          "saleAmt",
+          "0",
+          "number",
+          true
+        )}
+
+        ${input(
+          "Profit",
+          "saleProfit",
+          "0",
+          "number"
+        )}
+
 
         <div class="field two">
-          <label>Live Calculation</label>
-          <div id="saleCalcHint" class="hint">Select a product and enter quantity. Prices will come from Product Master.</div>
+
+          <label>
+            Live Calculation
+          </label>
+
+          <div
+            id="saleCalcHint"
+            class="hint"
+          >
+            Select a product and enter quantity.
+            Prices will come from Product Master.
+          </div>
+
         </div>
+
 
         <div class="field">
 
-          <label>Payment Type</label>
+          <label>
+            Payment Type
+          </label>
 
           <select id="salePayment">
 
@@ -1723,19 +2266,31 @@ function salesPage(main){
 
         </div>
 
-        ${input("Paid Now","salePaid","0","number")}
+
+        ${input(
+          "Paid Now",
+          "salePaid",
+          "0",
+          "number"
+        )}
+
 
         <div class="field two">
 
-          <label>Notes</label>
+          <label>
+            Notes
+          </label>
 
           <textarea id="saleNotes"></textarea>
 
         </div>
 
+
         <div class="field two">
 
-          <label>Bill PDF</label>
+          <label>
+            Bill PDF
+          </label>
 
           <div class="filebox">
 
@@ -1750,6 +2305,7 @@ function salesPage(main){
         </div>
 
       </div>
+
 
       <div class="form-actions">
 
@@ -1771,6 +2327,7 @@ function salesPage(main){
 
   </div>
 
+
   <div class="section">
 
     <h3>Recent Sales</h3>
@@ -1779,24 +2336,26 @@ function salesPage(main){
 
       <table>
 
-      <tr>
-        <th>Date</th>
-        <th>Bill</th>
-        <th>Customer</th>
-        <th>Product</th>
-        <th>Amount</th>
-        <th>Paid</th>
-        <th>Credit</th>
-        <th>Bill</th>
-      </tr>
+        <tr>
+          <th>Date</th>
+          <th>Bill</th>
+          <th>Customer</th>
+          <th>Product</th>
+          <th>Amount</th>
+          <th>Paid</th>
+          <th>Credit</th>
+          <th>Bill</th>
+        </tr>
 
-      ${
-        cache.bills
-        .filter(x=>x.type==="sale")
-        .slice(0,30)
-        .map(saleTableRow)
-        .join("")
-      }
+        ${
+          cache.bills
+            .filter(
+              x=>x.type==="sale"
+            )
+            .slice(0,30)
+            .map(saleTableRow)
+            .join("")
+        }
 
       </table>
 
@@ -1806,150 +2365,488 @@ function salesPage(main){
 
   `;
 
-  document.getElementById("saleForm").onsubmit=
-  saveSale;
 
-  const normalizeProductName = value => String(value||"")
-    .trim().toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
+  document.getElementById(
+    "saleForm"
+  ).onsubmit=saveSale;
 
-  const findProductByName = value => {
-    const key=normalizeProductName(value);
-    if(!key) return null;
-    return cache.products.find(p=>normalizeProductName(p.name)===key)
-      || cache.products.find(p=>normalizeProductName(p.name).includes(key) || key.includes(normalizeProductName(p.name)))
-      || null;
+
+  /* ==========================================
+     LIVE PRODUCT MASTER CALCULATION
+  ========================================== */
+
+  const recalcSale=()=>{
+
+    const productName=
+      document
+        .getElementById("saleProduct")
+        ?.value;
+
+    const qty=
+      Number(
+        document
+          .getElementById("saleQty")
+          ?.value||0
+      );
+
+
+    const result=
+      calculateProductProfit(
+        productName,
+        qty
+      );
+
+
+    const priceEl=
+      document.getElementById(
+        "salePrice"
+      );
+
+    const purchaseEl=
+      document.getElementById(
+        "salePurchasePrice"
+      );
+
+    const amountEl=
+      document.getElementById(
+        "saleAmt"
+      );
+
+    const profitEl=
+      document.getElementById(
+        "saleProfit"
+      );
+
+    const hintEl=
+      document.getElementById(
+        "saleCalcHint"
+      );
+
+
+    if(!result.product){
+
+      priceEl.value="0";
+
+      purchaseEl.value="0";
+
+      amountEl.value="0";
+
+      profitEl.value="0";
+
+
+      if(productName){
+
+        hintEl.textContent=
+          "Product not found in Product Master. Select the exact product name from the list.";
+
+      }else{
+
+        hintEl.textContent=
+          "Select a product and enter quantity. Prices will come from Product Master.";
+
+      }
+
+      return;
+
+    }
+
+
+    priceEl.value=
+      result.salePrice.toFixed(2);
+
+    purchaseEl.value=
+      result.purchasePrice.toFixed(2);
+
+    amountEl.value=
+      result.amount.toFixed(2);
+
+    profitEl.value=
+      result.profit.toFixed(2);
+
+
+    hintEl.textContent=
+      `${result.product.name}: `+
+      `Sale ${money(result.salePrice)} − `+
+      `Purchase ${money(result.purchasePrice)} = `+
+      `Margin ${money(
+        result.salePrice-
+        result.purchasePrice
+      )} × `+
+      `${qty} qty = `+
+      `Profit ${money(result.profit)}`;
+
   };
 
-  const recalcSale = () => {
-    const product=findProductByName(document.getElementById("saleProduct")?.value);
-    const qty=Number(document.getElementById("saleQty")?.value||0);
-    const salePrice=Number(product?.sale_price||0);
-    const purchasePrice=Number(product?.purchase_price||0);
-    const amount=salePrice*qty;
-    const profit=(salePrice-purchasePrice)*qty;
-    document.getElementById("salePrice").value=product ? salePrice.toFixed(2) : "0";
-    document.getElementById("salePurchasePrice").value=product ? purchasePrice.toFixed(2) : "0";
-    document.getElementById("saleAmt").value=product ? amount.toFixed(2) : "0";
-    document.getElementById("saleProfit").value=product ? profit.toFixed(2) : "0";
-    const h=document.getElementById("saleCalcHint");
-    if(!product){ if(h) h.textContent="Product not found in Product Master. Select a product name from the list."; return; }
-    if(h) h.textContent=`${product.name}: Sale ${money(salePrice)} − Purchase ${money(purchasePrice)} = Margin ${money(salePrice-purchasePrice)} × ${qty} qty = Profit ${money(profit)}`;
-  };
-  document.getElementById("saleProduct").addEventListener("input",recalcSale);
-  document.getElementById("saleProduct").addEventListener("change",recalcSale);
-  document.getElementById("saleQty").addEventListener("input",recalcSale);
-  document.getElementById("salePrice").readOnly=true;
-  document.getElementById("salePurchasePrice").readOnly=true;
-  document.getElementById("saleAmt").readOnly=true;
-  document.getElementById("saleProfit").readOnly=true;
-  document.getElementById("salePayment").addEventListener("change",()=>{
-    const amt=Number(document.getElementById("saleAmt")?.value||0);
-    if(document.getElementById("salePayment").value==="cash") document.getElementById("salePaid").value=amt.toFixed(2);
-    if(document.getElementById("salePayment").value==="credit") document.getElementById("salePaid").value="0";
-  });
+
+  document
+    .getElementById("saleProduct")
+    .addEventListener(
+      "input",
+      recalcSale
+    );
+
+  document
+    .getElementById("saleProduct")
+    .addEventListener(
+      "change",
+      recalcSale
+    );
+
+  document
+    .getElementById("saleQty")
+    .addEventListener(
+      "input",
+      recalcSale
+    );
+
+
+  document.getElementById(
+    "salePrice"
+  ).readOnly=true;
+
+  document.getElementById(
+    "salePurchasePrice"
+  ).readOnly=true;
+
+  document.getElementById(
+    "saleAmt"
+  ).readOnly=true;
+
+  document.getElementById(
+    "saleProfit"
+  ).readOnly=true;
+
+
+  document
+    .getElementById("salePayment")
+    .addEventListener(
+      "change",
+      ()=>{
+
+        const amt=
+          Number(
+            document
+              .getElementById(
+                "saleAmt"
+              )
+              ?.value||0
+          );
+
+        const mode=
+          document.getElementById(
+            "salePayment"
+          ).value;
+
+
+        if(mode==="cash"){
+
+          document.getElementById(
+            "salePaid"
+          ).value=
+            amt.toFixed(2);
+
+        }
+
+
+        if(mode==="credit"){
+
+          document.getElementById(
+            "salePaid"
+          ).value="0";
+
+        }
+
+      }
+    );
+
+
   recalcSale();
 
 }
+
 
 async function saveSale(e){
 
   e.preventDefault();
 
-  const productName=String(saleProduct.value||"").trim();
-  const product=cache.products.find(p=>normalizeProductName(p.name)===normalizeProductName(productName))
-    || cache.products.find(p=>normalizeProductName(p.name).includes(normalizeProductName(productName)) || normalizeProductName(productName).includes(normalizeProductName(p.name)));
-  if(!product){ toast("Product not found in Product Master"); return; }
 
-  const qty=Number(saleQty.value||0);
-  const masterSalePrice=Number(product.sale_price||0);
-  const masterPurchasePrice=Number(product.purchase_price||0);
-  const amt=masterSalePrice*qty;
-  salePrice.value=masterSalePrice.toFixed(2);
-  salePurchasePrice.value=masterPurchasePrice.toFixed(2);
-  saleAmt.value=amt.toFixed(2);
-  saleProfit.value=((masterSalePrice-masterPurchasePrice)*qty).toFixed(2);
+  /* ==========================================
+     READ FORM
+  ========================================== */
 
-  let paid=Number(salePaid.value||0);
+  const productName=
+    String(
+      saleProduct.value||""
+    ).trim();
 
-  if(salePayment.value==="cash")
+  const qty=
+    Number(
+      saleQty.value||0
+    );
+
+
+  if(!productName){
+
+    toast(
+      "Please select a product"
+    );
+
+    return;
+
+  }
+
+
+  if(qty<=0){
+
+    toast(
+      "Enter a valid quantity"
+    );
+
+    return;
+
+  }
+
+
+  /* ==========================================
+     PRODUCT MASTER IS SOURCE OF TRUTH
+  ========================================== */
+
+  const result=
+    calculateProductProfit(
+      productName,
+      qty
+    );
+
+
+  if(!result.product){
+
+    toast(
+      "Product not found in Product Master"
+    );
+
+    return;
+
+  }
+
+
+  const masterProduct=
+    result.product;
+
+  const masterSalePrice=
+    result.salePrice;
+
+  const masterPurchasePrice=
+    result.purchasePrice;
+
+  const amt=
+    result.amount;
+
+  const profit=
+    result.profit;
+
+
+  /* ==========================================
+     VALIDATE PRODUCT MASTER
+  ========================================== */
+
+  if(masterSalePrice<=0){
+
+    toast(
+      "Sale Price is missing in Product Master"
+    );
+
+    return;
+
+  }
+
+
+  if(masterPurchasePrice<0){
+
+    toast(
+      "Purchase Price is invalid in Product Master"
+    );
+
+    return;
+
+  }
+
+
+  /* ==========================================
+     UPDATE DISPLAY
+  ========================================== */
+
+  salePrice.value=
+    masterSalePrice.toFixed(2);
+
+  salePurchasePrice.value=
+    masterPurchasePrice.toFixed(2);
+
+  saleAmt.value=
+    amt.toFixed(2);
+
+  saleProfit.value=
+    profit.toFixed(2);
+
+
+  /* ==========================================
+     PAYMENT
+  ========================================== */
+
+  let paid=
+    Number(
+      salePaid.value||0
+    );
+
+
+  if(salePayment.value==="cash"){
+
     paid=amt;
+
+  }
+
+
+  if(salePayment.value==="credit"){
+
+    paid=0;
+
+  }
+
 
   if(paid>amt){
 
-    toast("Paid amount cannot exceed total");
+    toast(
+      "Paid amount cannot exceed total"
+    );
 
     return;
+
   }
 
-  const credit=amt-paid;
-  const status = credit<=0 ? "PAID" : (paid>0 ? "PARTIAL" : "CREDIT");
+
+  const credit=
+    Math.max(
+      0,
+      amt-paid
+    );
+
+
+  const status=
+    credit<=0
+      ? "PAID"
+      : paid>0
+        ? "PARTIAL"
+        : "CREDIT";
+
+
+  /* ==========================================
+     CREATE BILL ID
+  ========================================== */
 
   const id=
-  "S-"+Date.now();
+    "S-"+Date.now();
+
+
+  /* ==========================================
+     PDF
+  ========================================== */
 
   let fileUrl="";
 
   const file=
-  document.getElementById("saleFile").files[0];
+    document
+      .getElementById(
+        "saleFile"
+      )
+      .files[0];
+
 
   if(file){
 
     fileUrl=
-    await uploadBill(file,id);
+      await uploadBill(
+        file,
+        id
+      );
 
     if(!fileUrl)return;
 
   }
 
-  const {error}=await db
-  .from("bills")
-  .insert({
 
-    id,
+  /* ==========================================
+     SAVE SALE
+  ========================================== */
 
-    type:"sale",
+  const {error}=
+    await db
+      .from("bills")
+      .insert({
 
-    no:saleNo.value,
+        id,
 
-    date:saleDate.value,
+        type:"sale",
 
-    party:saleParty.value,
+        no:saleNo.value,
 
-    prod:saleProduct.value,
+        date:saleDate.value,
 
-    qty:Number(saleQty.value||0),
+        party:saleParty.value,
 
-    amt,
+        /*
+          EXACT Product Master name
+        */
+        prod:masterProduct.name,
 
-    paid,
+        qty,
 
-    credit,
+        amt,
 
-    payment_mode:salePayment.value,
-    status,
+        paid,
 
-    file:fileUrl,
+        credit,
 
-    notes:saleNotes.value,
+        payment_mode:
+          salePayment.value,
 
-    created_by:user.id
+        status,
 
-  });
+        file:fileUrl,
+
+        notes:saleNotes.value,
+
+        created_by:user.id
+
+      });
+
 
   if(error){
 
-    toast(error.message);
+    console.error(error);
+
+    toast(
+      "Sale save failed: "+
+      error.message
+    );
 
     return;
 
   }
 
+
+  /* ==========================================
+     UPDATE STOCK
+  ========================================== */
+
   await updateStock(
-    saleProduct.value,
-    -Number(saleQty.value||0)
+    masterProduct.name,
+    -qty
   );
 
-  toast("Sale saved successfully");
+
+  toast(
+    `Sale saved successfully — Profit ${money(profit)}`
+  );
+
 
   await loadAll();
 
@@ -1974,9 +2871,18 @@ function purchasePage(main){
 
       <div class="formgrid">
 
-        ${input("Purchase Bill No","purchaseNo","PUR-"+Date.now())}
+        ${input(
+          "Purchase Bill No",
+          "purchaseNo",
+          "PUR-"+Date.now()
+        )}
 
-        ${input("Date","purchaseDate",today(),"date")}
+        ${input(
+          "Date",
+          "purchaseDate",
+          today(),
+          "date"
+        )}
 
         <div class="field">
 
@@ -2001,18 +2907,31 @@ function purchasePage(main){
           >
 
           <datalist id="productList2">
+
             ${
               cache.products.map(
-                x=>`<option value="${esc(x.name)}">`
+                x=>
+                  `<option value="${esc(x.name)}">`
               ).join("")
             }
+
           </datalist>
 
         </div>
 
-        ${input("Quantity","purchaseQty","0","number")}
+        ${input(
+          "Quantity",
+          "purchaseQty",
+          "0",
+          "number"
+        )}
 
-        ${input("Amount","purchaseAmt","0","number")}
+        ${input(
+          "Amount",
+          "purchaseAmt",
+          "0",
+          "number"
+        )}
 
         <div class="field">
 
@@ -2032,7 +2951,12 @@ function purchasePage(main){
 
         </div>
 
-        ${input("Paid Now","purchasePaid","0","number")}
+        ${input(
+          "Paid Now",
+          "purchasePaid",
+          "0",
+          "number"
+        )}
 
         <div class="field two">
 
@@ -2060,6 +2984,7 @@ function purchasePage(main){
 
   </div>
 
+
   <div class="section">
 
     <h3>Recent Purchases</h3>
@@ -2068,42 +2993,47 @@ function purchasePage(main){
 
       <table>
 
-      <tr>
-        <th>Date</th>
-        <th>Bill</th>
-        <th>Supplier</th>
-        <th>Product</th>
-        <th>Qty</th>
-        <th>Amount</th>
-        <th>Paid</th>
-      </tr>
-
-      ${
-        cache.bills
-        .filter(x=>x.type==="purchase")
-        .slice(0,30)
-        .map(x=>`
-
         <tr>
-
-          <td>${esc(x.date)}</td>
-
-          <td>${esc(x.no)}</td>
-
-          <td>${esc(x.party)}</td>
-
-          <td>${esc(x.prod)}</td>
-
-          <td>${x.qty||0}</td>
-
-          <td>${money(x.amt)}</td>
-
-          <td>${money(x.paid)}</td>
-
+          <th>Date</th>
+          <th>Bill</th>
+          <th>Supplier</th>
+          <th>Product</th>
+          <th>Qty</th>
+          <th>Amount</th>
+          <th>Paid</th>
         </tr>
 
-        `).join("")
-      }
+        ${
+          cache.bills
+            .filter(
+              x=>x.type==="purchase"
+            )
+            .slice(0,30)
+            .map(
+              x=>`
+
+              <tr>
+
+                <td>${esc(x.date)}</td>
+
+                <td>${esc(x.no)}</td>
+
+                <td>${esc(x.party)}</td>
+
+                <td>${esc(x.prod)}</td>
+
+                <td>${x.qty||0}</td>
+
+                <td>${money(x.amt)}</td>
+
+                <td>${money(x.paid)}</td>
+
+              </tr>
+
+            `
+            )
+            .join("")
+        }
 
       </table>
 
@@ -2113,23 +3043,80 @@ function purchasePage(main){
 
   `;
 
-  document.getElementById("purchaseForm")
-  .onsubmit=savePurchase;
 
-  const recalcPurchase = () => {
-    const name=String(document.getElementById("purchaseProduct")?.value||"").trim().toLowerCase();
-    const qty=Number(document.getElementById("purchaseQty")?.value||0);
-    const product=cache.products.find(p=>String(p.name||"").trim().toLowerCase()===name);
-    const purchasePrice=Number(product?.purchase_price||0);
-    const amount=purchasePrice*qty;
+  document.getElementById(
+    "purchaseForm"
+  ).onsubmit=savePurchase;
+
+
+  const recalcPurchase=()=>{
+
+    const name=
+      String(
+        document
+          .getElementById(
+            "purchaseProduct"
+          )
+          ?.value||""
+      )
+      .trim()
+      .toLowerCase();
+
+    const qty=
+      Number(
+        document
+          .getElementById(
+            "purchaseQty"
+          )
+          ?.value||0
+      );
+
+    const product=
+      cache.products.find(
+        p=>
+          String(p.name||"")
+            .trim()
+            .toLowerCase()===name
+      );
+
+    const purchasePrice=
+      Number(
+        product?.purchase_price||0
+      );
+
+    const amount=
+      purchasePrice*qty;
+
+
     if(product){
-      document.getElementById("purchaseAmt").value=amount.toFixed(2);
-      const h=document.getElementById("purchaseCalcHint");
-      if(h) h.textContent=`${money(purchasePrice)} purchase price × ${qty} qty = ${money(amount)}`;
+
+      document.getElementById(
+        "purchaseAmt"
+      ).value=
+        amount.toFixed(2);
+
     }
+
   };
-  document.getElementById("purchaseProduct").addEventListener("input",recalcPurchase);
-  document.getElementById("purchaseQty").addEventListener("input",recalcPurchase);
+
+
+  document
+    .getElementById(
+      "purchaseProduct"
+    )
+    .addEventListener(
+      "input",
+      recalcPurchase
+    );
+
+  document
+    .getElementById(
+      "purchaseQty"
+    )
+    .addEventListener(
+      "input",
+      recalcPurchase
+    );
 
 }
 
@@ -2138,62 +3125,100 @@ async function savePurchase(e){
 
   e.preventDefault();
 
+
   const amt=
-  Number(purchaseAmt.value||0);
+    Number(
+      purchaseAmt.value||0
+    );
 
   let paid=
-  Number(purchasePaid.value||0);
+    Number(
+      purchasePaid.value||0
+    );
+
 
   if(purchasePayment.value==="cash")
     paid=amt;
 
-  const id="P-"+Date.now();
+
+  const id=
+    "P-"+Date.now();
+
 
   let fileUrl="";
 
+
   const file=
-  document.getElementById("purchaseFile").files[0];
+    document
+      .getElementById(
+        "purchaseFile"
+      )
+      .files[0];
+
 
   if(file){
 
-    fileUrl=await uploadBill(file,id);
+    fileUrl=
+      await uploadBill(
+        file,
+        id
+      );
 
     if(!fileUrl)return;
 
   }
 
-  const {error}=await db
-  .from("bills")
-  .insert({
 
-    id,
+  const {error}=
+    await db
+      .from("bills")
+      .insert({
 
-    type:"purchase",
+        id,
 
-    no:purchaseNo.value,
+        type:"purchase",
 
-    date:purchaseDate.value,
+        no:purchaseNo.value,
 
-    party:purchaseParty.value,
+        date:purchaseDate.value,
 
-    prod:purchaseProduct.value,
+        party:purchaseParty.value,
 
-    qty:Number(purchaseQty.value||0),
+        prod:purchaseProduct.value,
 
-    amt,
+        qty:Number(
+          purchaseQty.value||0
+        ),
 
-    paid,
+        amt,
 
-    credit:Math.max(0,amt-paid),
-    status:Math.max(0,amt-paid)<=0 ? "PAID" : (paid>0 ? "PARTIAL" : "CREDIT"),
+        paid,
 
-    payment_mode:purchasePayment.value,
+        credit:
+          Math.max(
+            0,
+            amt-paid
+          ),
 
-    file:fileUrl,
+        status:
+          Math.max(
+            0,
+            amt-paid
+          )<=0
+            ? "PAID"
+            : paid>0
+              ? "PARTIAL"
+              : "CREDIT",
 
-    created_by:user.id
+        payment_mode:
+          purchasePayment.value,
 
-  });
+        file:fileUrl,
+
+        created_by:user.id
+
+      });
+
 
   if(error){
 
@@ -2203,12 +3228,18 @@ async function savePurchase(e){
 
   }
 
+
   await updateStock(
     purchaseProduct.value,
-    Number(purchaseQty.value||0)
+    Number(
+      purchaseQty.value||0
+    )
   );
 
-  toast("Purchase saved");
+
+  toast(
+    "Purchase saved"
+  );
 
   await loadAll();
 
@@ -2222,34 +3253,43 @@ async function savePurchase(e){
 function paymentsPage(main){
 
   const outstanding=
-  cache.bills
-  .filter(x=>x.type==="sale")
-  .reduce(
-    (a,x)=>a+
-    Math.max(
-      0,
-      Number(x.amt||0)-Number(x.paid||0)
-    ),
-    0
-  );
+    cache.bills
+      .filter(
+        x=>x.type==="sale"
+      )
+      .reduce(
+        (a,x)=>
+          a+
+          Math.max(
+            0,
+            Number(x.amt||0)-
+            Number(x.paid||0)
+          ),
+        0
+      );
+
 
   main.innerHTML=`
 
   <div class="page-title">
 
     <div>
+
       <h2>Payments</h2>
 
       <div class="hint">
         Record money received later against customer credit.
       </div>
+
     </div>
 
     <div class="pill red">
-      Outstanding: ${money(outstanding)}
+      Outstanding:
+      ${money(outstanding)}
     </div>
 
   </div>
+
 
   <div class="card">
 
@@ -2257,7 +3297,13 @@ function paymentsPage(main){
 
       <div class="formgrid">
 
-        ${input("Date","paymentDate",today(),"date")}
+        ${input(
+          "Date",
+          "paymentDate",
+          today(),
+          "date"
+        )}
+
 
         <div class="field">
 
@@ -2273,7 +3319,8 @@ function paymentsPage(main){
 
             ${
               cache.buyers.map(
-                x=>`<option value="${esc(x.name)}">`
+                x=>
+                  `<option value="${esc(x.name)}">`
               ).join("")
             }
 
@@ -2281,9 +3328,12 @@ function paymentsPage(main){
 
         </div>
 
+
         <div class="field">
 
-          <label>Bill ID (optional)</label>
+          <label>
+            Bill ID (optional)
+          </label>
 
           <input
             id="paymentBill"
@@ -2292,11 +3342,20 @@ function paymentsPage(main){
 
         </div>
 
-        ${input("Amount","paymentAmount","0","number")}
+
+        ${input(
+          "Amount",
+          "paymentAmount",
+          "0",
+          "number"
+        )}
+
 
         <div class="field">
 
-          <label>Payment Mode</label>
+          <label>
+            Payment Mode
+          </label>
 
           <select id="paymentMode">
 
@@ -2309,6 +3368,7 @@ function paymentsPage(main){
 
         </div>
 
+
         <div class="field two">
 
           <label>Notes</label>
@@ -2318,6 +3378,7 @@ function paymentsPage(main){
         </div>
 
       </div>
+
 
       <div class="form-actions">
 
@@ -2331,6 +3392,7 @@ function paymentsPage(main){
 
   </div>
 
+
   <div class="section">
 
     <h3>Payment History</h3>
@@ -2339,36 +3401,40 @@ function paymentsPage(main){
 
       <table>
 
-      <tr>
-        <th>Date</th>
-        <th>Party</th>
-        <th>Bill</th>
-        <th>Mode</th>
-        <th>Amount</th>
-        <th>Notes</th>
-      </tr>
-
-      ${
-        cache.payments.map(x=>`
-
         <tr>
-
-          <td>${esc(x.date)}</td>
-
-          <td>${esc(x.party)}</td>
-
-          <td>${esc(x.bill_id||"-")}</td>
-
-          <td>${esc(x.mode)}</td>
-
-          <td><b>${money(x.amount)}</b></td>
-
-          <td>${esc(x.notes||"")}</td>
-
+          <th>Date</th>
+          <th>Party</th>
+          <th>Bill</th>
+          <th>Mode</th>
+          <th>Amount</th>
+          <th>Notes</th>
         </tr>
 
-        `).join("")
-      }
+        ${
+          cache.payments.map(
+            x=>`
+
+            <tr>
+
+              <td>${esc(x.date)}</td>
+
+              <td>${esc(x.party)}</td>
+
+              <td>${esc(x.bill_id||"-")}</td>
+
+              <td>${esc(x.mode)}</td>
+
+              <td>
+                <b>${money(x.amount)}</b>
+              </td>
+
+              <td>${esc(x.notes||"")}</td>
+
+            </tr>
+
+          `
+          ).join("")
+        }
 
       </table>
 
@@ -2378,8 +3444,10 @@ function paymentsPage(main){
 
   `;
 
-  document.getElementById("paymentForm")
-  .onsubmit=savePayment;
+
+  document.getElementById(
+    "paymentForm"
+  ).onsubmit=savePayment;
 
 }
 
@@ -2388,40 +3456,57 @@ async function savePayment(e){
 
   e.preventDefault();
 
+
   const amount=
-  Number(paymentAmount.value||0);
+    Number(
+      paymentAmount.value||0
+    );
+
 
   if(amount<=0){
 
-    toast("Enter a valid amount");
+    toast(
+      "Enter a valid amount"
+    );
 
     return;
 
   }
 
-  const id="PAY-"+Date.now();
 
-  const {error}=await db
-  .from("payments")
-  .insert({
+  const id=
+    "PAY-"+Date.now();
 
-    id,
 
-    date:paymentDate.value,
+  const {error}=
+    await db
+      .from("payments")
+      .insert({
 
-    party:paymentParty.value,
+        id,
 
-    bill_id:paymentBill.value||null,
+        date:
+          paymentDate.value,
 
-    type:"received",
+        party:
+          paymentParty.value,
 
-    amount,
+        bill_id:
+          paymentBill.value||null,
 
-    mode:paymentMode.value,
+        type:
+          "received",
 
-    notes:paymentNotes.value
+        amount,
 
-  });
+        mode:
+          paymentMode.value,
+
+        notes:
+          paymentNotes.value
+
+      });
+
 
   if(error){
 
@@ -2431,43 +3516,59 @@ async function savePayment(e){
 
   }
 
+
   if(paymentBill.value){
 
     const bill=
-    cache.bills.find(
-      x=>x.id===paymentBill.value
-    );
+      cache.bills.find(
+        x=>
+          x.id===
+          paymentBill.value
+      );
+
 
     if(bill){
 
       const newPaid=
-      Number(bill.paid||0)+amount;
+        Number(bill.paid||0)+
+        amount;
+
 
       await db
-      .from("bills")
-      .update({
+        .from("bills")
+        .update({
 
-        paid:newPaid,
+          paid:newPaid,
 
-        credit:
-        Math.max(
-          0,
-          Number(bill.amt||0)-newPaid
-        ),
+          credit:
+            Math.max(
+              0,
+              Number(bill.amt||0)-
+              newPaid
+            ),
 
-        status:
-        Number(bill.amt||0)-newPaid<=0
-          ? "PAID"
-          : (newPaid>0 ? "PARTIAL" : "CREDIT")
+          status:
+            Number(bill.amt||0)-
+            newPaid<=0
+              ? "PAID"
+              : newPaid>0
+                ? "PARTIAL"
+                : "CREDIT"
 
-      })
-      .eq("id",bill.id);
+        })
+        .eq(
+          "id",
+          bill.id
+        );
 
     }
 
   }
 
-  toast("Payment recorded");
+
+  toast(
+    "Payment recorded"
+  );
 
   await loadAll();
 
@@ -2484,9 +3585,12 @@ function partiesPage(main){
 
   <div class="page-title">
 
-    <h2>Parties / Buyers</h2>
+    <h2>
+      Parties / Buyers
+    </h2>
 
   </div>
+
 
   <div class="card">
 
@@ -2494,19 +3598,47 @@ function partiesPage(main){
 
       <div class="formgrid">
 
-        ${input("Name","buyerName","","text",true)}
+        ${input(
+          "Name",
+          "buyerName",
+          "",
+          "text",
+          true
+        )}
 
-        ${input("Phone","buyerPhone")}
+        ${input(
+          "Phone",
+          "buyerPhone"
+        )}
 
-        ${input("Main Product","buyerProduct")}
+        ${input(
+          "Main Product",
+          "buyerProduct"
+        )}
 
-        ${input("Demand","buyerDemand","0","number")}
+        ${input(
+          "Demand",
+          "buyerDemand",
+          "0",
+          "number"
+        )}
 
-        ${input("Cycle Days","buyerCycle","30","number")}
+        ${input(
+          "Cycle Days",
+          "buyerCycle",
+          "30",
+          "number"
+        )}
 
-        ${input("Added","buyerAdded",today(),"date")}
+        ${input(
+          "Added",
+          "buyerAdded",
+          today(),
+          "date"
+        )}
 
       </div>
+
 
       <div class="form-actions">
 
@@ -2520,6 +3652,7 @@ function partiesPage(main){
 
   </div>
 
+
   <div class="section">
 
     <h3>Customers</h3>
@@ -2528,76 +3661,95 @@ function partiesPage(main){
 
       <table>
 
-      <tr>
-        <th>Name</th>
-        <th>Phone</th>
-        <th>Product</th>
-        <th>Demand</th>
-        <th>Cycle</th>
-        <th>Outstanding</th>
-        <th>Action</th>
-      </tr>
+        <tr>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>Product</th>
+          <th>Demand</th>
+          <th>Cycle</th>
+          <th>Outstanding</th>
+          <th>Action</th>
+        </tr>
 
-      ${
-        cache.buyers.map(x=>{
+        ${
+          cache.buyers.map(x=>{
 
-          const outstanding=
-          cache.bills
-          .filter(
-            b=>b.type==="sale" &&
-            b.party===x.name
-          )
-          .reduce(
-            (a,b)=>
-            a+
-            Math.max(
-              0,
-              Number(b.amt||0)-Number(b.paid||0)
-            ),
-            0
-          );
+            const outstanding=
+              cache.bills
+                .filter(
+                  b=>
+                    b.type==="sale" &&
+                    b.party===x.name
+                )
+                .reduce(
+                  (a,b)=>
+                    a+
+                    Math.max(
+                      0,
+                      Number(b.amt||0)-
+                      Number(b.paid||0)
+                    ),
+                  0
+                );
 
-          return `
 
-          <tr>
+            return `
 
-            <td><b>${esc(x.name)}</b></td>
+            <tr>
 
-            <td>${esc(x.phone||"")}</td>
+              <td>
+                <b>${esc(x.name)}</b>
+              </td>
 
-            <td>${esc(x.prod||"")}</td>
+              <td>
+                ${esc(x.phone||"")}
+              </td>
 
-            <td>${x.demand||0}</td>
+              <td>
+                ${esc(x.prod||"")}
+              </td>
 
-            <td>${x.cycle||30} days</td>
+              <td>
+                ${x.demand||0}
+              </td>
 
-            <td>
+              <td>
+                ${x.cycle||30} days
+              </td>
 
-              <span class="pill ${outstanding>0?"red":"green"}">
+              <td>
 
-                ${money(outstanding)}
+                <span
+                  class="pill ${
+                    outstanding>0
+                      ?"red"
+                      :"green"
+                  }"
+                >
+                  ${money(outstanding)}
+                </span>
 
-              </span>
+              </td>
 
-            </td>
+              <td>
 
-            <td>
+                <button
+                  class="btn alt"
+                  onclick="
+                    prefillPayment('${esc(x.name)}')
+                  "
+                >
+                  Payment
+                </button>
 
-              <button
-                class="btn alt"
-                onclick="prefillPayment('${esc(x.name)}')"
-              >
-                Payment
-              </button>
+              </td>
 
-            </td>
+            </tr>
 
-          </tr>
+            `;
 
-          `;
-
-        }).join("")
-      }
+          }).join("")
+        }
 
       </table>
 
@@ -2607,8 +3759,10 @@ function partiesPage(main){
 
   `;
 
-  document.getElementById("buyerForm")
-  .onsubmit=saveBuyer;
+
+  document.getElementById(
+    "buyerForm"
+  ).onsubmit=saveBuyer;
 
 }
 
@@ -2620,9 +3774,12 @@ function prefillPayment(name){
   setTimeout(()=>{
 
     const x=
-    document.getElementById("paymentParty");
+      document.getElementById(
+        "paymentParty"
+      );
 
-    if(x)x.value=name;
+    if(x)
+      x.value=name;
 
   },100);
 
@@ -2633,25 +3790,39 @@ async function saveBuyer(e){
 
   e.preventDefault();
 
-  const {error}=await db
-  .from("buyers")
-  .insert({
 
-    id:"B-"+Date.now(),
+  const {error}=
+    await db
+      .from("buyers")
+      .insert({
 
-    name:buyerName.value,
+        id:
+          "B-"+Date.now(),
 
-    phone:buyerPhone.value,
+        name:
+          buyerName.value,
 
-    prod:buyerProduct.value,
+        phone:
+          buyerPhone.value,
 
-    demand:Number(buyerDemand.value||0),
+        prod:
+          buyerProduct.value,
 
-    cycle:Number(buyerCycle.value||30),
+        demand:
+          Number(
+            buyerDemand.value||0
+          ),
 
-    added:buyerAdded.value
+        cycle:
+          Number(
+            buyerCycle.value||30
+          ),
 
-  });
+        added:
+          buyerAdded.value
+
+      });
+
 
   if(error){
 
@@ -2661,7 +3832,10 @@ async function saveBuyer(e){
 
   }
 
-  toast("Buyer added");
+
+  toast(
+    "Buyer added"
+  );
 
   await loadAll();
 
@@ -2677,8 +3851,11 @@ function productsPage(main){
   main.innerHTML=`
 
   <div class="page-title">
+
     <h2>Products</h2>
+
   </div>
+
 
   <div class="card">
 
@@ -2686,19 +3863,50 @@ function productsPage(main){
 
       <div class="formgrid">
 
-        ${input("Product Name","productName","","text",true)}
+        ${input(
+          "Product Name",
+          "productName",
+          "",
+          "text",
+          true
+        )}
 
-        ${input("Unit","productUnit","kg")}
+        ${input(
+          "Unit",
+          "productUnit",
+          "kg"
+        )}
 
-        ${input("Opening Stock","productStock","0","number")}
+        ${input(
+          "Opening Stock",
+          "productStock",
+          "0",
+          "number"
+        )}
 
-        ${input("Minimum Stock","productMin","0","number")}
+        ${input(
+          "Minimum Stock",
+          "productMin",
+          "0",
+          "number"
+        )}
 
-        ${input("Purchase Price","productPurchase","0","number")}
+        ${input(
+          "Purchase Price",
+          "productPurchase",
+          "0",
+          "number"
+        )}
 
-        ${input("Sale Price","productSale","0","number")}
+        ${input(
+          "Sale Price",
+          "productSale",
+          "0",
+          "number"
+        )}
 
       </div>
+
 
       <div class="form-actions">
 
@@ -2712,6 +3920,7 @@ function productsPage(main){
 
   </div>
 
+
   <div class="section">
 
     <h3>Product Master</h3>
@@ -2720,49 +3929,72 @@ function productsPage(main){
 
       <table>
 
-      <tr>
-        <th>Product</th>
-        <th>Unit</th>
-        <th>Stock</th>
-        <th>Minimum</th>
-        <th>Purchase Price</th>
-        <th>Sale Price</th>
-        <th>Status</th>
-      </tr>
-
-      ${
-        cache.products.map(x=>`
-
         <tr>
-
-          <td><b>${esc(x.name)}</b></td>
-
-          <td>${esc(x.unit)}</td>
-
-          <td>${x.stock||0}</td>
-
-          <td>${x.min_stock||0}</td>
-
-          <td>${money(x.purchase_price)}</td>
-
-          <td>${money(x.sale_price)}</td>
-
-          <td>
-
-            ${
-              Number(x.stock||0)<=Number(x.min_stock||0)
-              ?
-              `<span class="pill red">LOW STOCK</span>`
-              :
-              `<span class="pill green">OK</span>`
-            }
-
-          </td>
-
+          <th>Product</th>
+          <th>Unit</th>
+          <th>Stock</th>
+          <th>Minimum</th>
+          <th>Purchase Price</th>
+          <th>Sale Price</th>
+          <th>Status</th>
         </tr>
 
-        `).join("")
-      }
+        ${
+          cache.products.map(
+            x=>`
+
+            <tr>
+
+              <td>
+                <b>${esc(x.name)}</b>
+              </td>
+
+              <td>
+                ${esc(x.unit)}
+              </td>
+
+              <td>
+                ${x.stock||0}
+              </td>
+
+              <td>
+                ${x.min_stock||0}
+              </td>
+
+              <td>
+                ${money(x.purchase_price)}
+              </td>
+
+              <td>
+                ${money(x.sale_price)}
+              </td>
+
+              <td>
+
+                ${
+                  Number(x.stock||0)<=
+                  Number(x.min_stock||0)
+
+                  ?
+
+                  `<span class="pill red">
+                    LOW STOCK
+                  </span>`
+
+                  :
+
+                  `<span class="pill green">
+                    OK
+                  </span>`
+                }
+
+              </td>
+
+            </tr>
+
+          `
+          ).join("")
+        }
 
       </table>
 
@@ -2772,8 +4004,10 @@ function productsPage(main){
 
   `;
 
-  document.getElementById("productForm")
-  .onsubmit=saveProduct;
+
+  document.getElementById(
+    "productForm"
+  ).onsubmit=saveProduct;
 
 }
 
@@ -2782,27 +4016,43 @@ async function saveProduct(e){
 
   e.preventDefault();
 
-  const {error}=await db
-  .from("products")
-  .insert({
 
-    id:"PR-"+Date.now(),
+  const {error}=
+    await db
+      .from("products")
+      .insert({
 
-    name:productName.value,
+        id:
+          "PR-"+Date.now(),
 
-    unit:productUnit.value,
+        name:
+          productName.value,
 
-    stock:Number(productStock.value||0),
+        unit:
+          productUnit.value,
 
-    min_stock:Number(productMin.value||0),
+        stock:
+          Number(
+            productStock.value||0
+          ),
 
-    purchase_price:
-    Number(productPurchase.value||0),
+        min_stock:
+          Number(
+            productMin.value||0
+          ),
 
-    sale_price:
-    Number(productSale.value||0)
+        purchase_price:
+          Number(
+            productPurchase.value||0
+          ),
 
-  });
+        sale_price:
+          Number(
+            productSale.value||0
+          )
+
+      });
+
 
   if(error){
 
@@ -2812,7 +4062,10 @@ async function saveProduct(e){
 
   }
 
-  toast("Product added");
+
+  toast(
+    "Product added"
+  );
 
   await loadAll();
 
@@ -2833,39 +4086,49 @@ function stockPage(main){
 
   </div>
 
+
   <div class="grid">
 
     ${
-      cache.products.map(x=>`
+      cache.products.map(
+        x=>`
 
-      <div class="card metric">
+        <div class="card metric">
 
-        <div class="label">
-          ${esc(x.name)}
+          <div class="label">
+            ${esc(x.name)}
+          </div>
+
+          <div class="value">
+            ${x.stock||0}
+            ${esc(x.unit||"")}
+          </div>
+
+          <div class="small">
+
+            ${
+              Number(x.stock||0)<=
+              Number(x.min_stock||0)
+
+              ?
+
+              "⚠️ Low stock"
+
+              :
+
+              "Stock healthy"
+            }
+
+          </div>
+
         </div>
 
-        <div class="value">
-          ${x.stock||0} ${esc(x.unit||"")}
-        </div>
-
-        <div class="small">
-
-          ${
-            Number(x.stock||0)<=Number(x.min_stock||0)
-            ?
-            "⚠️ Low stock"
-            :
-            "Stock healthy"
-          }
-
-        </div>
-
-      </div>
-
-      `).join("")
+      `
+      ).join("")
     }
 
   </div>
+
 
   <div class="section">
 
@@ -2875,47 +4138,73 @@ function stockPage(main){
 
       <table>
 
-      <tr>
-        <th>Date</th>
-        <th>Type</th>
-        <th>Party</th>
-        <th>Product</th>
-        <th>Quantity</th>
-        <th>Amount</th>
-      </tr>
-
-      ${
-        cache.bills
-        .filter(x=>x.type==="sale"||x.type==="purchase")
-        .slice(0,100)
-        .map(x=>`
-
         <tr>
-
-          <td>${esc(x.date)}</td>
-
-          <td>
-            ${
-              x.type==="sale"
-              ?
-              `<span class="pill red">OUT</span>`
-              :
-              `<span class="pill green">IN</span>`
-            }
-          </td>
-
-          <td>${esc(x.party)}</td>
-
-          <td>${esc(x.prod)}</td>
-
-          <td>${x.qty||0}</td>
-
-          <td>${money(x.amt)}</td>
-
+          <th>Date</th>
+          <th>Type</th>
+          <th>Party</th>
+          <th>Product</th>
+          <th>Quantity</th>
+          <th>Amount</th>
         </tr>
 
-        `).join("")
-      }
+        ${
+          cache.bills
+            .filter(
+              x=>
+                x.type==="sale"||
+                x.type==="purchase"
+            )
+            .slice(0,100)
+            .map(
+              x=>`
+
+              <tr>
+
+                <td>
+                  ${esc(x.date)}
+                </td>
+
+                <td>
+
+                  ${
+                    x.type==="sale"
+
+                    ?
+
+                    `<span class="pill red">
+                      OUT
+                    </span>`
+
+                    :
+
+                    `<span class="pill green">
+                      IN
+                    </span>`
+                  }
+
+                </td>
+
+                <td>
+                  ${esc(x.party)}
+                </td>
+
+                <td>
+                  ${esc(x.prod)}
+                </td>
+
+                <td>
+                  ${x.qty||0}
+                </td>
+
+                <td>
+                  ${money(x.amt)}
+                </td>
+
+              </tr>
+
+            `
+            ).join("")
+        }
 
       </table>
 
@@ -2937,8 +4226,11 @@ function expensesPage(main){
   main.innerHTML=`
 
   <div class="page-title">
+
     <h2>Expenses</h2>
+
   </div>
+
 
   <div class="card">
 
@@ -2946,15 +4238,32 @@ function expensesPage(main){
 
       <div class="formgrid">
 
-        ${input("Date","expenseDate",today(),"date")}
+        ${input(
+          "Date",
+          "expenseDate",
+          today(),
+          "date"
+        )}
 
-        ${input("Category","expenseCategory")}
+        ${input(
+          "Category",
+          "expenseCategory"
+        )}
 
-        ${input("Description","expenseDescription")}
+        ${input(
+          "Description",
+          "expenseDescription"
+        )}
 
-        ${input("Amount","expenseAmount","0","number")}
+        ${input(
+          "Amount",
+          "expenseAmount",
+          "0",
+          "number"
+        )}
 
       </div>
+
 
       <div class="form-actions">
 
@@ -2968,6 +4277,7 @@ function expensesPage(main){
 
   </div>
 
+
   <div class="section">
 
     <h3>Expense History</h3>
@@ -2976,30 +4286,40 @@ function expensesPage(main){
 
       <table>
 
-      <tr>
-        <th>Date</th>
-        <th>Category</th>
-        <th>Description</th>
-        <th>Amount</th>
-      </tr>
-
-      ${
-        cache.expenses.map(x=>`
-
         <tr>
-
-          <td>${esc(x.date)}</td>
-
-          <td>${esc(x.category)}</td>
-
-          <td>${esc(x.description)}</td>
-
-          <td><b>${money(x.amount)}</b></td>
-
+          <th>Date</th>
+          <th>Category</th>
+          <th>Description</th>
+          <th>Amount</th>
         </tr>
 
-        `).join("")
-      }
+        ${
+          cache.expenses.map(
+            x=>`
+
+            <tr>
+
+              <td>
+                ${esc(x.date)}
+              </td>
+
+              <td>
+                ${esc(x.category)}
+              </td>
+
+              <td>
+                ${esc(x.description)}
+              </td>
+
+              <td>
+                <b>${money(x.amount)}</b>
+              </td>
+
+            </tr>
+
+          `
+          ).join("")
+        }
 
       </table>
 
@@ -3009,8 +4329,10 @@ function expensesPage(main){
 
   `;
 
-  document.getElementById("expenseForm")
-  .onsubmit=saveExpense;
+
+  document.getElementById(
+    "expenseForm"
+  ).onsubmit=saveExpense;
 
 }
 
@@ -3019,21 +4341,31 @@ async function saveExpense(e){
 
   e.preventDefault();
 
-  const {error}=await db
-  .from("expenses")
-  .insert({
 
-    id:"EXP-"+Date.now(),
+  const {error}=
+    await db
+      .from("expenses")
+      .insert({
 
-    date:expenseDate.value,
+        id:
+          "EXP-"+Date.now(),
 
-    category:expenseCategory.value,
+        date:
+          expenseDate.value,
 
-    description:expenseDescription.value,
+        category:
+          expenseCategory.value,
 
-    amount:Number(expenseAmount.value||0)
+        description:
+          expenseDescription.value,
 
-  });
+        amount:
+          Number(
+            expenseAmount.value||0
+          )
+
+      });
+
 
   if(error){
 
@@ -3043,7 +4375,10 @@ async function saveExpense(e){
 
   }
 
-  toast("Expense saved");
+
+  toast(
+    "Expense saved"
+  );
 
   await loadAll();
 
@@ -3070,35 +4405,44 @@ function ledgerPage(main){
 
   </div>
 
+
   <div class="card">
 
     <div class="table-wrap">
 
       <table id="ledgerTable">
 
-      <tr>
-        <th>Date</th>
-        <th>Type</th>
-        <th>Bill</th>
-        <th>Party</th>
-        <th>Product</th>
-        <th>Amount</th>
-        <th>Paid</th>
-        <th>Credit</th>
-        <th>Status</th>
-        <th>PDF</th>
-        <th>Edit</th>
-      </tr>
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Bill</th>
+          <th>Party</th>
+          <th>Product</th>
+          <th>Amount</th>
+          <th>Paid</th>
+          <th>Credit</th>
+          <th>Status</th>
+          <th>PDF</th>
+          <th>Edit</th>
+        </tr>
 
-      ${
-        cache.bills
-        .map(ledgerRow)
-        .join("")
-      }
+        ${
+          cache.bills
+            .map(ledgerRow)
+            .join("")
+        }
 
       </table>
 
-      <div id="billEditBox" class="card" style="display:none;margin-top:15px"></div>
+
+      <div
+        id="billEditBox"
+        class="card"
+        style="
+          display:none;
+          margin-top:15px
+        "
+      ></div>
 
     </div>
 
@@ -3106,27 +4450,35 @@ function ledgerPage(main){
 
   `;
 
-  document.getElementById("ledgerSearch")
-  .oninput=e=>{
 
-    const q=e.target.value.toLowerCase();
+  document.getElementById(
+    "ledgerSearch"
+  ).oninput=e=>{
+
+    const q=
+      e.target.value.toLowerCase();
+
 
     document
-    .querySelectorAll("#ledgerTable tr")
-    .forEach((row,i)=>{
+      .querySelectorAll(
+        "#ledgerTable tr"
+      )
+      .forEach(
+        (row,i)=>{
 
-      if(i===0)return;
+          if(i===0)return;
 
-      row.style.display=
-      row.textContent
-      .toLowerCase()
-      .includes(q)
-      ?
-      ""
-      :
-      "none";
+          row.style.display=
+            row.textContent
+              .toLowerCase()
+              .includes(q)
+              ?
+              ""
+              :
+              "none";
 
-    });
+        }
+      );
 
   };
 
@@ -3134,214 +4486,717 @@ function ledgerPage(main){
 
 
 /* =====================================================
-   EDIT BILL FROM LEDGER
+   EDIT BILL
 ===================================================== */
 
 function editBill(id){
 
-  const bill=cache.bills.find(x=>x.id===id);
+  const bill=
+    cache.bills.find(
+      x=>x.id===id
+    );
+
 
   if(!bill){
-    toast("Bill not found");
+
+    toast(
+      "Bill not found"
+    );
+
     return;
+
   }
 
-  const box=document.getElementById("billEditBox");
+
+  const box=
+    document.getElementById(
+      "billEditBox"
+    );
+
 
   if(!box)return;
 
-  box.style.display="block";
+
+  box.style.display=
+    "block";
+
 
   box.innerHTML=`
 
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
-      <h3 style="margin:0">Edit Bill — ${esc(bill.no||bill.id)}</h3>
-      <button type="button" class="btn alt" onclick="closeBillEdit()">Close</button>
+    <div style="
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:10px;
+      margin-bottom:14px
+    ">
+
+      <h3 style="margin:0">
+        Edit Bill —
+        ${esc(
+          bill.no||
+          bill.id
+        )}
+      </h3>
+
+      <button
+        type="button"
+        class="btn alt"
+        onclick="closeBillEdit()"
+      >
+        Close
+      </button>
+
     </div>
+
 
     <form id="billEditForm">
 
       <div class="formgrid">
 
-        ${input("Date","editBillDate",bill.date||today(),"date",true)}
-        ${input("Bill Number","editBillNo",bill.no||"")}
+        ${input(
+          "Date",
+          "editBillDate",
+          bill.date||today(),
+          "date",
+          true
+        )}
+
+        ${input(
+          "Bill Number",
+          "editBillNo",
+          bill.no||""
+        )}
+
 
         <div class="field">
+
           <label>Type</label>
-          <select id="editBillType" class="input">
-            <option value="sale" ${bill.type==="sale"?"selected":""}>Sale</option>
-            <option value="purchase" ${bill.type==="purchase"?"selected":""}>Purchase</option>
+
+          <select
+            id="editBillType"
+            class="input"
+          >
+
+            <option
+              value="sale"
+              ${bill.type==="sale"?"selected":""}
+            >
+              Sale
+            </option>
+
+            <option
+              value="purchase"
+              ${bill.type==="purchase"?"selected":""}
+            >
+              Purchase
+            </option>
+
           </select>
+
         </div>
 
-        ${input("Party","editBillParty",bill.party||"","text",true)}
-        ${input("Product","editBillProd",bill.prod||"","text",true)}
-        ${input("Quantity","editBillQty",bill.qty||0,"number",true)}
-        ${input("Bill Amount","editBillAmt",bill.amt||0,"number",true)}
-        ${input("Paid","editBillPaid",bill.paid||0,"number",true)}
+
+        ${input(
+          "Party",
+          "editBillParty",
+          bill.party||"",
+          "text",
+          true
+        )}
+
+        ${input(
+          "Product",
+          "editBillProd",
+          bill.prod||"",
+          "text",
+          true
+        )}
+
+        ${input(
+          "Quantity",
+          "editBillQty",
+          bill.qty||0,
+          "number",
+          true
+        )}
+
+        ${input(
+          "Bill Amount",
+          "editBillAmt",
+          bill.amt||0,
+          "number",
+          true
+        )}
+
+        ${input(
+          "Paid",
+          "editBillPaid",
+          bill.paid||0,
+          "number",
+          true
+        )}
+
 
         <div class="field">
-          <label>Payment Mode</label>
-          <select id="editBillMode" class="input">
-            <option value="cash" ${bill.payment_mode==="cash"?"selected":""}>Cash</option>
-            <option value="bank" ${bill.payment_mode==="bank"?"selected":""}>Bank</option>
-            <option value="upi" ${bill.payment_mode==="upi"?"selected":""}>UPI</option>
-            <option value="credit" ${bill.payment_mode==="credit"?"selected":""}>Credit</option>
-            <option value="partial" ${bill.payment_mode==="partial"?"selected":""}>Partial</option>
+
+          <label>
+            Payment Mode
+          </label>
+
+          <select
+            id="editBillMode"
+            class="input"
+          >
+
+            <option
+              value="cash"
+              ${bill.payment_mode==="cash"?"selected":""}
+            >
+              Cash
+            </option>
+
+            <option
+              value="bank"
+              ${bill.payment_mode==="bank"?"selected":""}
+            >
+              Bank
+            </option>
+
+            <option
+              value="upi"
+              ${bill.payment_mode==="upi"?"selected":""}
+            >
+              UPI
+            </option>
+
+            <option
+              value="credit"
+              ${bill.payment_mode==="credit"?"selected":""}
+            >
+              Credit
+            </option>
+
+            <option
+              value="partial"
+              ${bill.payment_mode==="partial"?"selected":""}
+            >
+              Partial
+            </option>
+
           </select>
+
         </div>
 
-        <div class="field"><label>Status</label><input id="editBillStatus" value="${esc(bill.status||"")}" readonly><div class="hint">Status is calculated automatically from Paid and Amount.</div></div>
-        ${input("Notes","editBillNotes",bill.notes||"")}
+
+        <div class="field">
+
+          <label>Status</label>
+
+          <input
+            id="editBillStatus"
+            value="${esc(
+              bill.status||""
+            )}"
+            readonly
+          >
+
+          <div class="hint">
+            Status is calculated automatically
+            from Paid and Amount.
+          </div>
+
+        </div>
+
+
+        ${input(
+          "Notes",
+          "editBillNotes",
+          bill.notes||""
+        )}
+
 
         <div class="field two">
-          <label>Bill PDF (Add / Replace)</label>
+
+          <label>
+            Bill PDF (Add / Replace)
+          </label>
+
           <div class="filebox">
-            <input id="editBillFile" type="file" accept="application/pdf,.pdf">
-            <div class="hint" style="margin-top:7px">
-              ${bill.file ? "PDF already attached. Upload a new PDF to replace it." : "No PDF attached. Add the bill PDF here."}
+
+            <input
+              id="editBillFile"
+              type="file"
+              accept="application/pdf,.pdf"
+            >
+
+            <div
+              class="hint"
+              style="margin-top:7px"
+            >
+
+              ${
+                bill.file
+                ?
+                "PDF already attached. Upload a new PDF to replace it."
+                :
+                "No PDF attached. Add the bill PDF here."
+              }
+
             </div>
+
           </div>
+
         </div>
 
       </div>
 
+
       <div class="form-actions">
-        <button class="btn" type="submit">Save Changes</button>
-        <button class="btn alt" type="button" onclick="closeBillEdit()">Cancel</button>
+
+        <button
+          class="btn"
+          type="submit"
+        >
+          Save Changes
+        </button>
+
+        <button
+          class="btn alt"
+          type="button"
+          onclick="closeBillEdit()"
+        >
+          Cancel
+        </button>
+
       </div>
 
     </form>
+
   `;
 
-  document.getElementById("billEditForm").onsubmit=e=>saveBillEdit(e,id);
 
-  // Keep Paid / Credit / Partial / Cash consistent while editing.
-  const editAmtEl=document.getElementById("editBillAmt");
-  const editPaidEl=document.getElementById("editBillPaid");
-  const editModeEl=document.getElementById("editBillMode");
-  const editStatusEl=document.getElementById("editBillStatus");
+  document.getElementById(
+    "billEditForm"
+  ).onsubmit=
+    e=>saveBillEdit(
+      e,
+      id
+    );
+
+
+  const editAmtEl=
+    document.getElementById(
+      "editBillAmt"
+    );
+
+  const editPaidEl=
+    document.getElementById(
+      "editBillPaid"
+    );
+
+  const editModeEl=
+    document.getElementById(
+      "editBillMode"
+    );
+
+  const editStatusEl=
+    document.getElementById(
+      "editBillStatus"
+    );
+
 
   const recalcEditedBill=()=>{
-    const amt=Number(editAmtEl?.value||0);
-    let paid=Number(editPaidEl?.value||0);
-    const mode=editModeEl?.value||"";
+
+    const amt=
+      Number(
+        editAmtEl?.value||0
+      );
+
+    let paid=
+      Number(
+        editPaidEl?.value||0
+      );
+
+    const mode=
+      editModeEl?.value||"";
+
 
     if(mode==="credit"){
+
       paid=0;
-      if(editPaidEl) editPaidEl.value="0";
+
+      if(editPaidEl)
+        editPaidEl.value="0";
+
     }else if(mode==="cash"){
+
       paid=amt;
-      if(editPaidEl) editPaidEl.value=amt.toFixed(2);
+
+      if(editPaidEl)
+        editPaidEl.value=
+          amt.toFixed(2);
+
     }else if(paid>amt){
+
       paid=amt;
-      if(editPaidEl) editPaidEl.value=amt.toFixed(2);
+
+      if(editPaidEl)
+        editPaidEl.value=
+          amt.toFixed(2);
+
     }
 
-    const credit=Math.max(0,amt-paid);
-    const status=credit<=0 ? "PAID" : (paid>0 ? "PARTIAL" : "CREDIT");
-    if(editStatusEl) editStatusEl.value=status;
+
+    const credit=
+      Math.max(
+        0,
+        amt-paid
+      );
+
+
+    const status=
+      credit<=0
+        ? "PAID"
+        : paid>0
+          ? "PARTIAL"
+          : "CREDIT";
+
+
+    if(editStatusEl)
+      editStatusEl.value=
+        status;
+
   };
 
-  editAmtEl?.addEventListener("input",recalcEditedBill);
-  editPaidEl?.addEventListener("input",recalcEditedBill);
-  editModeEl?.addEventListener("change",recalcEditedBill);
+
+  editAmtEl?.addEventListener(
+    "input",
+    recalcEditedBill
+  );
+
+  editPaidEl?.addEventListener(
+    "input",
+    recalcEditedBill
+  );
+
+  editModeEl?.addEventListener(
+    "change",
+    recalcEditedBill
+  );
+
+
   recalcEditedBill();
 
-  box.scrollIntoView({behavior:"smooth",block:"start"});
+
+  box.scrollIntoView({
+    behavior:"smooth",
+    block:"start"
+  });
+
 }
 
+
 function closeBillEdit(){
-  const box=document.getElementById("billEditBox");
+
+  const box=
+    document.getElementById(
+      "billEditBox"
+    );
+
+
   if(box){
-    box.style.display="none";
+
+    box.style.display=
+      "none";
+
     box.innerHTML="";
+
   }
+
 }
+
 
 async function saveBillEdit(e,id){
 
   e.preventDefault();
 
-  const oldBill=cache.bills.find(x=>x.id===id);
-  if(!oldBill){ toast("Bill not found"); return; }
 
-  const amount=Number(document.getElementById("editBillAmt").value||0);
-  let paid=Number(document.getElementById("editBillPaid").value||0);
-  const qty=Number(document.getElementById("editBillQty").value||0);
+  const oldBill=
+    cache.bills.find(
+      x=>x.id===id
+    );
 
-  if(amount<0 || paid<0 || qty<0){
-    toast("Amount, paid and quantity cannot be negative");
+
+  if(!oldBill){
+
+    toast(
+      "Bill not found"
+    );
+
     return;
+
   }
+
+
+  const amount=
+    Number(
+      document.getElementById(
+        "editBillAmt"
+      ).value||0
+    );
+
+
+  let paid=
+    Number(
+      document.getElementById(
+        "editBillPaid"
+      ).value||0
+    );
+
+
+  const qty=
+    Number(
+      document.getElementById(
+        "editBillQty"
+      ).value||0
+    );
+
+
+  if(
+    amount<0 ||
+    paid<0 ||
+    qty<0
+  ){
+
+    toast(
+      "Amount, paid and quantity cannot be negative"
+    );
+
+    return;
+
+  }
+
 
   if(paid>amount){
-    toast("Paid amount cannot be greater than bill amount");
+
+    toast(
+      "Paid amount cannot be greater than bill amount"
+    );
+
     return;
+
   }
 
-  const type=document.getElementById("editBillType").value;
-  const newProduct=document.getElementById("editBillProd").value.trim();
-  const oldProduct=oldBill.prod||"";
-  const oldQty=Number(oldBill.qty||0);
 
-  let fileUrl=oldBill.file||"";
-  const editFile=document.getElementById("editBillFile")?.files?.[0];
+  const type=
+    document.getElementById(
+      "editBillType"
+    ).value;
+
+
+  const newProduct=
+    document.getElementById(
+      "editBillProd"
+    ).value.trim();
+
+
+  const oldProduct=
+    oldBill.prod||"";
+
+
+  const oldQty=
+    Number(
+      oldBill.qty||0
+    );
+
+
+  let fileUrl=
+    oldBill.file||"";
+
+
+  const editFile=
+    document.getElementById(
+      "editBillFile"
+    )?.files?.[0];
+
+
   if(editFile){
-    fileUrl=await uploadBill(editFile,id);
+
+    fileUrl=
+      await uploadBill(
+        editFile,
+        id
+      );
+
     if(!fileUrl)return;
+
   }
 
-  let paymentMode=document.getElementById("editBillMode").value;
 
-  // Payment mode is authoritative for the edited payment state.
+  let paymentMode=
+    document.getElementById(
+      "editBillMode"
+    ).value;
+
+
   if(paymentMode==="credit"){
+
     paid=0;
+
   }else if(paymentMode==="cash"){
+
     paid=amount;
+
   }
+
 
   if(paid>amount){
-    toast("Paid amount cannot be greater than bill amount");
+
+    toast(
+      "Paid amount cannot be greater than bill amount"
+    );
+
     return;
+
   }
 
-  const credit=Math.max(0,amount-paid);
-  const status=credit<=0 ? "PAID" : (paid>0 ? "PARTIAL" : "CREDIT");
 
-  const {data:updatedBill,error}=await db
-  .from("bills")
-  .update({
-    date:document.getElementById("editBillDate").value,
-    no:document.getElementById("editBillNo").value.trim(),
-    type,
-    party:document.getElementById("editBillParty").value.trim(),
-    prod:newProduct,
-    qty,
-    amt:amount,
-    paid,
-    credit,
-    payment_mode:paymentMode,
-    status,
-    notes:document.getElementById("editBillNotes").value.trim(),
-    file:fileUrl
-  })
-  .eq("id",id)
-  .select()
-  .single();
+  const credit=
+    Math.max(
+      0,
+      amount-paid
+    );
 
-  if(error){ toast(error.message); return; }
-  if(!updatedBill){ toast("Bill was not updated"); return; }
 
-  // Reverse old stock movement, then apply the edited movement.
-  if(oldBill.type==="purchase") await updateStock(oldProduct,-oldQty);
-  if(oldBill.type==="sale") await updateStock(oldProduct,oldQty);
-  if(type==="purchase") await updateStock(newProduct,qty);
-  if(type==="sale") await updateStock(newProduct,-qty);
+  const status=
+    credit<=0
+      ? "PAID"
+      : paid>0
+        ? "PARTIAL"
+        : "CREDIT";
 
-  toast("Bill updated successfully");
+
+  const {
+    data:updatedBill,
+    error
+  }=
+    await db
+      .from("bills")
+      .update({
+
+        date:
+          document.getElementById(
+            "editBillDate"
+          ).value,
+
+        no:
+          document.getElementById(
+            "editBillNo"
+          ).value.trim(),
+
+        type,
+
+        party:
+          document.getElementById(
+            "editBillParty"
+          ).value.trim(),
+
+        prod:
+          newProduct,
+
+        qty,
+
+        amt:
+          amount,
+
+        paid,
+
+        credit,
+
+        payment_mode:
+          paymentMode,
+
+        status,
+
+        notes:
+          document.getElementById(
+            "editBillNotes"
+          ).value.trim(),
+
+        file:
+          fileUrl
+
+      })
+      .eq(
+        "id",
+        id
+      )
+      .select()
+      .single();
+
+
+  if(error){
+
+    toast(
+      error.message
+    );
+
+    return;
+
+  }
+
+
+  if(!updatedBill){
+
+    toast(
+      "Bill was not updated"
+    );
+
+    return;
+
+  }
+
+
+  /* Reverse old stock */
+
+  if(oldBill.type==="purchase")
+    await updateStock(
+      oldProduct,
+      -oldQty
+    );
+
+  if(oldBill.type==="sale")
+    await updateStock(
+      oldProduct,
+      oldQty
+    );
+
+
+  /* Apply new stock */
+
+  if(type==="purchase")
+    await updateStock(
+      newProduct,
+      qty
+    );
+
+  if(type==="sale")
+    await updateStock(
+      newProduct,
+      -qty
+    );
+
+
+  toast(
+    "Bill updated successfully"
+  );
+
+
   closeBillEdit();
+
   await loadAll();
+
 }
 
 
@@ -3353,33 +5208,44 @@ async function uploadBill(file,id){
 
   if(file.type!=="application/pdf"){
 
-    toast("Only PDF bills are allowed");
+    toast(
+      "Only PDF bills are allowed"
+    );
 
     return null;
 
   }
 
-  const path=
-  `${user.id}/${id}-${file.name}`;
 
-  const {error}=await db.storage
-  .from("bills")
-  .upload(
-    path,
-    file,
-    {
-      upsert:true,
-      contentType:"application/pdf"
-    }
-  );
+  const path=
+    `${user.id}/${id}-${file.name}`;
+
+
+  const {error}=
+    await db.storage
+      .from("bills")
+      .upload(
+        path,
+        file,
+        {
+          upsert:true,
+          contentType:
+            "application/pdf"
+        }
+      );
+
 
   if(error){
 
-    toast("PDF upload failed: "+error.message);
+    toast(
+      "PDF upload failed: "+
+      error.message
+    );
 
     return null;
 
   }
+
 
   return path;
 
@@ -3390,34 +5256,49 @@ async function downloadBill(path){
 
   if(!path){
 
-    toast("No PDF attached");
+    toast(
+      "No PDF attached"
+    );
 
     return;
 
   }
 
-  const {data,error}=
-  await db.storage
-  .from("bills")
-  .download(path);
+
+  const {
+    data,
+    error
+  }=
+    await db.storage
+      .from("bills")
+      .download(path);
+
 
   if(error){
 
-    toast(error.message);
+    toast(
+      error.message
+    );
 
     return;
 
   }
 
-  const url=
-  URL.createObjectURL(data);
 
-  const a=document.createElement("a");
+  const url=
+    URL.createObjectURL(data);
+
+
+  const a=
+    document.createElement("a");
+
 
   a.href=url;
 
   a.download=
-  path.split("/").pop()||"bill.pdf";
+    path.split("/").pop()||
+    "bill.pdf";
+
 
   document.body.appendChild(a);
 
@@ -3434,23 +5315,56 @@ async function downloadBill(path){
    STOCK UPDATE
 ===================================================== */
 
-async function updateStock(name,change){
+async function updateStock(
+  name,
+  change
+){
 
   if(!name)return;
 
-  const {data:product,error:findError}=await db
-    .from("products")
-    .select("id,stock,name")
-    .ilike("name",name)
-    .limit(1)
-    .maybeSingle();
 
-  if(findError || !product) return;
+  const {
+    data:product,
+    error:findError
+  }=
+    await db
+      .from("products")
+      .select(
+        "id,stock,name"
+      )
+      .ilike(
+        "name",
+        name
+      )
+      .limit(1)
+      .maybeSingle();
+
+
+  if(
+    findError ||
+    !product
+  ){
+
+    return;
+
+  }
+
 
   await db
     .from("products")
-    .update({stock:Number(product.stock||0)+change})
-    .eq("id",product.id);
+    .update({
+
+      stock:
+        Number(
+          product.stock||0
+        )+
+        change
+
+    })
+    .eq(
+      "id",
+      product.id
+    );
 
 }
 
@@ -3471,7 +5385,9 @@ function input(
 
   <div class="field">
 
-    <label>${label}</label>
+    <label>
+      ${label}
+    </label>
 
     <input
       id="${id}"
@@ -3493,25 +5409,45 @@ function billRow(x){
 
   <tr>
 
-    <td>${esc(x.date)}</td>
-
     <td>
-      ${
-        x.type==="sale"
-        ?
-        `<span class="pill red">SALE</span>`
-        :
-        `<span class="pill green">PURCHASE</span>`
-      }
+      ${esc(x.date)}
     </td>
 
-    <td>${esc(x.party)}</td>
+    <td>
 
-    <td>${esc(x.prod)}</td>
+      ${
+        x.type==="sale"
 
-    <td>${money(x.amt)}</td>
+        ?
 
-    <td>${esc(x.payment_mode||"")}</td>
+        `<span class="pill red">
+          SALE
+        </span>`
+
+        :
+
+        `<span class="pill green">
+          PURCHASE
+        </span>`
+      }
+
+    </td>
+
+    <td>
+      ${esc(x.party)}
+    </td>
+
+    <td>
+      ${esc(x.prod)}
+    </td>
+
+    <td>
+      ${money(x.amt)}
+    </td>
+
+    <td>
+      ${esc(x.payment_mode||"")}
+    </td>
 
   </tr>
 
@@ -3526,26 +5462,46 @@ function saleTableRow(x){
 
   <tr>
 
-    <td>${esc(x.date)}</td>
+    <td>
+      ${esc(x.date)}
+    </td>
 
-    <td>${esc(x.no)}</td>
+    <td>
+      ${esc(x.no)}
+    </td>
 
-    <td>${esc(x.party)}</td>
+    <td>
+      ${esc(x.party)}
+    </td>
 
-    <td>${esc(x.prod)}</td>
+    <td>
+      ${esc(x.prod)}
+    </td>
 
-    <td>${money(x.amt)}</td>
+    <td>
+      ${money(x.amt)}
+    </td>
 
-    <td>${money(x.paid)}</td>
+    <td>
+      ${money(x.paid)}
+    </td>
 
     <td>
 
       ${
         Number(x.credit||0)>0
+
         ?
-        `<span class="pill red">${money(x.credit)}</span>`
+
+        `<span class="pill red">
+          ${money(x.credit)}
+        </span>`
+
         :
-        `<span class="pill green">Paid</span>`
+
+        `<span class="pill green">
+          Paid
+        </span>`
       }
 
     </td>
@@ -3554,14 +5510,20 @@ function saleTableRow(x){
 
       ${
         x.file
+
         ?
+
         `<button
           class="btn alt"
-          onclick="downloadBill('${esc(x.file)}')"
+          onclick="
+            downloadBill('${esc(x.file)}')
+          "
         >
           Download
         </button>`
+
         :
+
         "-"
       }
 
@@ -3576,22 +5538,132 @@ function saleTableRow(x){
 
 function ledgerRow(x){
 
-  const credit=Math.max(0,Number(x.amt||0)-Number(x.paid||0));
+  const credit=
+    Math.max(
+      0,
+      Number(x.amt||0)-
+      Number(x.paid||0)
+    );
+
 
   return `
+
   <tr>
-    <td>${esc(x.date)}</td>
-    <td>${x.type==="sale" ? `<span class="pill red">SALE</span>` : `<span class="pill green">PURCHASE</span>`}</td>
-    <td>${esc(x.no||x.id||"")}</td>
-    <td>${esc(x.party||"")}</td>
-    <td>${esc(x.prod||"")}</td>
-    <td>${money(x.amt)}</td>
-    <td>${money(x.paid||0)}</td>
-    <td>${money(credit)}</td>
-    <td><span class="pill ${credit<=0?"green":"red"}">${credit<=0 ? "PAID" : (Number(x.paid||0)>0 ? "PARTIAL" : "CREDIT")}</span></td>
-    <td>${x.file ? `<button class="btn alt" type="button" onclick="downloadBill('${esc(x.file)}')">Download PDF</button>` : "-"}</td>
-    <td><button class="btn alt" type="button" onclick="editBill('${esc(x.id)}')">Edit</button></td>
+
+    <td>
+      ${esc(x.date)}
+    </td>
+
+    <td>
+
+      ${
+        x.type==="sale"
+
+        ?
+
+        `<span class="pill red">
+          SALE
+        </span>`
+
+        :
+
+        `<span class="pill green">
+          PURCHASE
+        </span>`
+      }
+
+    </td>
+
+    <td>
+      ${esc(x.no||x.id||"")}
+    </td>
+
+    <td>
+      ${esc(x.party||"")}
+    </td>
+
+    <td>
+      ${esc(x.prod||"")}
+    </td>
+
+    <td>
+      ${money(x.amt)}
+    </td>
+
+    <td>
+      ${money(x.paid||0)}
+    </td>
+
+    <td>
+      ${money(credit)}
+    </td>
+
+    <td>
+
+      <span
+        class="pill ${
+          credit<=0
+            ?"green"
+            :"red"
+        }"
+      >
+
+        ${
+          credit<=0
+            ?
+            "PAID"
+            :
+            Number(x.paid||0)>0
+              ?
+              "PARTIAL"
+              :
+              "CREDIT"
+        }
+
+      </span>
+
+    </td>
+
+    <td>
+
+      ${
+        x.file
+
+        ?
+
+        `<button
+          class="btn alt"
+          type="button"
+          onclick="
+            downloadBill('${esc(x.file)}')
+          "
+        >
+          Download PDF
+        </button>`
+
+        :
+
+        "-"
+      }
+
+    </td>
+
+    <td>
+
+      <button
+        class="btn alt"
+        type="button"
+        onclick="
+          editBill('${esc(x.id)}')
+        "
+      >
+        Edit
+      </button>
+
+    </td>
+
   </tr>
+
   `;
 
 }
