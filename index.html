@@ -905,17 +905,23 @@ function dashboardPage(main){
 
   // PROFIT = (SALE PRICE - PURCHASE PRICE) x SOLD QUANTITY
   // Expenses, payments and purchase bills do NOT change this profit figure.
+  const normalizeProductName = value => String(value||"")
+    .trim().toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
+
+  const findProductForProfit = value => {
+    const key=normalizeProductName(value);
+    if(!key) return null;
+    return allProducts.find(p=>normalizeProductName(p.name)===key)
+      || allProducts.find(p=>normalizeProductName(p.name).includes(key) || key.includes(normalizeProductName(p.name)))
+      || null;
+  };
+
   const productProfit = (bill) => {
-    const product = allProducts.find(p =>
-      String(p.name||"").trim().toLowerCase() ===
-      String(bill.prod||"").trim().toLowerCase()
-    );
-
-    const purchasePrice = Number(product?.purchase_price||0);
-    const salePrice = Number(product?.sale_price||0);
-    const qty = Number(bill.qty||0);
-
-    return (salePrice - purchasePrice) * qty;
+    const product=findProductForProfit(bill.prod);
+    const purchasePrice=Number(product?.purchase_price||0);
+    const salePrice=Number(product?.sale_price||0);
+    const qty=Number(bill.qty||0);
+    return (salePrice-purchasePrice)*qty;
   };
 
   const profitFor = arr =>
@@ -1682,11 +1688,17 @@ function salesPage(main){
 
         ${input("Quantity","saleQty","0","number",true)}
 
+        ${input("Sale Price / kg","salePrice","0","number")}
+
+        ${input("Purchase Price / kg","salePurchasePrice","0","number")}
+
         ${input("Total Amount","saleAmt","0","number",true)}
+
+        ${input("Profit","saleProfit","0","number")}
 
         <div class="field two">
           <label>Live Calculation</label>
-          <div id="saleCalcHint" class="hint">Select product and enter quantity.</div>
+          <div id="saleCalcHint" class="hint">Select a product and enter quantity. Prices will come from Product Master.</div>
         </div>
 
         <div class="field">
@@ -1797,31 +1809,65 @@ function salesPage(main){
   document.getElementById("saleForm").onsubmit=
   saveSale;
 
+  const normalizeProductName = value => String(value||"")
+    .trim().toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim();
+
+  const findProductByName = value => {
+    const key=normalizeProductName(value);
+    if(!key) return null;
+    return cache.products.find(p=>normalizeProductName(p.name)===key)
+      || cache.products.find(p=>normalizeProductName(p.name).includes(key) || key.includes(normalizeProductName(p.name)))
+      || null;
+  };
+
   const recalcSale = () => {
-    const name=String(document.getElementById("saleProduct")?.value||"").trim().toLowerCase();
+    const product=findProductByName(document.getElementById("saleProduct")?.value);
     const qty=Number(document.getElementById("saleQty")?.value||0);
-    const product=cache.products.find(p=>String(p.name||"").trim().toLowerCase()===name);
     const salePrice=Number(product?.sale_price||0);
     const purchasePrice=Number(product?.purchase_price||0);
     const amount=salePrice*qty;
     const profit=(salePrice-purchasePrice)*qty;
-    if(product){
-      document.getElementById("saleAmt").value=amount.toFixed(2);
-      const h=document.getElementById("saleCalcHint");
-      if(h) h.textContent=`${money(salePrice)} sale price × ${qty} qty = ${money(amount)} | Profit = ${money(profit)}`;
-    }
+    document.getElementById("salePrice").value=product ? salePrice.toFixed(2) : "0";
+    document.getElementById("salePurchasePrice").value=product ? purchasePrice.toFixed(2) : "0";
+    document.getElementById("saleAmt").value=product ? amount.toFixed(2) : "0";
+    document.getElementById("saleProfit").value=product ? profit.toFixed(2) : "0";
+    const h=document.getElementById("saleCalcHint");
+    if(!product){ if(h) h.textContent="Product not found in Product Master. Select a product name from the list."; return; }
+    if(h) h.textContent=`${product.name}: Sale ${money(salePrice)} − Purchase ${money(purchasePrice)} = Margin ${money(salePrice-purchasePrice)} × ${qty} qty = Profit ${money(profit)}`;
   };
   document.getElementById("saleProduct").addEventListener("input",recalcSale);
+  document.getElementById("saleProduct").addEventListener("change",recalcSale);
   document.getElementById("saleQty").addEventListener("input",recalcSale);
+  document.getElementById("salePrice").readOnly=true;
+  document.getElementById("salePurchasePrice").readOnly=true;
+  document.getElementById("saleAmt").readOnly=true;
+  document.getElementById("saleProfit").readOnly=true;
+  document.getElementById("salePayment").addEventListener("change",()=>{
+    const amt=Number(document.getElementById("saleAmt")?.value||0);
+    if(document.getElementById("salePayment").value==="cash") document.getElementById("salePaid").value=amt.toFixed(2);
+    if(document.getElementById("salePayment").value==="credit") document.getElementById("salePaid").value="0";
+  });
+  recalcSale();
 
 }
-
 
 async function saveSale(e){
 
   e.preventDefault();
 
-  const amt=Number(saleAmt.value||0);
+  const productName=String(saleProduct.value||"").trim();
+  const product=cache.products.find(p=>normalizeProductName(p.name)===normalizeProductName(productName))
+    || cache.products.find(p=>normalizeProductName(p.name).includes(normalizeProductName(productName)) || normalizeProductName(productName).includes(normalizeProductName(p.name)));
+  if(!product){ toast("Product not found in Product Master"); return; }
+
+  const qty=Number(saleQty.value||0);
+  const masterSalePrice=Number(product.sale_price||0);
+  const masterPurchasePrice=Number(product.purchase_price||0);
+  const amt=masterSalePrice*qty;
+  salePrice.value=masterSalePrice.toFixed(2);
+  salePurchasePrice.value=masterPurchasePrice.toFixed(2);
+  saleAmt.value=amt.toFixed(2);
+  saleProfit.value=((masterSalePrice-masterPurchasePrice)*qty).toFixed(2);
 
   let paid=Number(salePaid.value||0);
 
