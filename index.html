@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chocolate Trade Desk</title>
+<style>
+  /* ---------- CONFIG-FREE THEME ---------- */
+  :root{
+    --cocoa:#3b2417; --cocoa-2:#5a3a26; --caramel:#c98a3c; --caramel-lt:#e7b063;
+    --cream:#f6efe4; --paper:#fffdf9; --ink:#2a1c12; --muted:#8a7a68;
+    --line:#e3d6c2; --green:#2f7d4f; --red:#b33b2b; --shadow:0 8px 30px rgba(59,36,23,.10);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",system-ui,sans-serif;background:var(--cream);color:var(--ink)}
+  h1,h2,h3{font-family:Georgia,"Times New Roman",serif;letter-spacing:.2px}
+  button{cursor:pointer;font-family:inherit}
+  input,select{font-family:inherit}
+
+  /* ---------- LOGIN ---------- */
+  #login{min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 30% 20%,#4a2e1d,#2a1810)}
+  .login-card{background:var(--paper);padding:40px 36px;border-radius:18px;box-shadow:var(--shadow);width:340px;text-align:center}
+  .login-card h1{margin:0 0 4px;color:var(--cocoa);font-size:26px}
+  .login-card p{margin:0 0 24px;color:var(--muted);font-size:13px}
+  .login-card input{width:100%;padding:13px 14px;border:1px solid var(--line);border-radius:10px;font-size:15px;margin-bottom:12px;text-align:center;letter-spacing:2px}
+  .login-card button{width:100%;padding:13px;border:none;border-radius:10px;background:var(--cocoa);color:#fff;font-size:15px;font-weight:600}
+  .login-card button:hover{background:var(--cocoa-2)}
+  .hint{margin-top:16px;font-size:11px;color:var(--muted);line-height:1.6}
+  .err{color:var(--red);font-size:12px;min-height:16px;margin-bottom:6px}
+
+  /* ---------- APP SHELL ---------- */
+  #app{display:none}
+  header.top{background:var(--cocoa);color:var(--cream);padding:14px 22px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10}
+  header.top h1{margin:0;font-size:19px;display:flex;align-items:center;gap:10px}
+  .badge{font-size:11px;font-weight:600;background:var(--caramel);color:#3b2417;padding:3px 10px;border-radius:20px;letter-spacing:.5px}
+  .top-right{display:flex;align-items:center;gap:14px;font-size:13px}
+  .top-right button{background:transparent;border:1px solid rgba(255,255,255,.35);color:var(--cream);padding:6px 12px;border-radius:8px;font-size:12px}
+  nav.tabs{background:var(--paper);border-bottom:1px solid var(--line);display:flex;gap:2px;padding:0 16px;overflow-x:auto}
+  nav.tabs button{background:none;border:none;padding:14px 18px;font-size:14px;color:var(--muted);border-bottom:3px solid transparent;white-space:nowrap}
+  nav.tabs button.active{color:var(--cocoa);border-bottom-color:var(--caramel);font-weight:600}
+  main{max-width:1080px;margin:0 auto;padding:24px 18px 60px}
+  .tabpane{display:none}
+  .tabpane.active{display:block}
+
+  /* ---------- CARDS / FORMS ---------- */
+  .card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:20px;box-shadow:var(--shadow)}
+  .card h2{margin:0 0 4px;font-size:18px;color:var(--cocoa)}
+  .card .sub{color:var(--muted);font-size:13px;margin:0 0 18px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px}
+  label.f{display:block;font-size:12px;color:var(--muted);margin-bottom:5px;font-weight:600}
+  .grid input,.grid select,.row input,.row select{width:100%;padding:10px 11px;border:1px solid var(--line);border-radius:9px;font-size:14px;background:#fff}
+  .row{display:flex;gap:12px;flex-wrap:wrap;align-items:end}
+  .btn{background:var(--caramel);color:#3b2417;border:none;padding:11px 20px;border-radius:9px;font-weight:600;font-size:14px}
+  .btn:hover{background:var(--caramel-lt)}
+  .btn.dark{background:var(--cocoa);color:#fff}
+  .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  .btn.sm{padding:6px 12px;font-size:12px}
+
+  /* ---------- STAT CARDS ---------- */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:22px}
+  .stat{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow)}
+  .stat .lbl{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.6px}
+  .stat .val{font-size:27px;font-weight:700;font-family:Georgia,serif;margin-top:6px}
+  .stat .val.pos{color:var(--green)} .stat .val.neg{color:var(--red)}
+
+  /* ---------- TABLE ---------- */
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th{text-align:left;padding:11px 12px;background:#f3e9d8;color:var(--cocoa);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px}
+  td{padding:11px 12px;border-top:1px solid var(--line)}
+  tr:hover td{background:#fbf6ec}
+  .pos{color:var(--green);font-weight:600}.neg{color:var(--red);font-weight:600}
+  .pill{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600}
+  .pill.due{background:#fde8e4;color:var(--red)} .pill.soon{background:#fbeecd;color:#8a5b12} .pill.ok{background:#e2f1e8;color:var(--green)}
+  .link-del{color:var(--red);background:none;border:none;font-size:12px;text-decoration:underline}
+  .empty{text-align:center;color:var(--muted);padding:36px 10px;font-size:14px}
+  .admin-only{display:none}
+  .file-note{font-size:11px;color:var(--muted);margin-top:4px}
+  a.billlink{color:var(--caramel);font-weight:600;text-decoration:none}
+  a.billlink:hover{text-decoration:underline}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--cocoa);color:#fff;padding:12px 22px;border-radius:10px;font-size:14px;box-shadow:var(--shadow);opacity:0;transition:.3s;pointer-events:none;z-index:99}
+  .toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN ============ -->
+<div id="login">
+  <div class="login-card">
+    <h1>🍫 Trade Desk</h1>
+    <p>Chocolate trading — internal portal</p>
+    <div class="err" id="loginErr"></div>
+    <input id="code" type="password" placeholder="Enter access code" autocomplete="off"
+           onkeydown="if(event.key==='Enter')doLogin()">
+    <button onclick="doLogin()">Sign in</button>
+    <div class="hint">Admin sees the profit dashboard.<br>Staff can enter bills &amp; buyer demand.</div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app">
+  <header class="top">
+    <h1>🍫 Chocolate Trade Desk <span class="badge" id="roleBadge">STAFF</span></h1>
+    <div class="top-right">
+      <span id="whoami"></span>
+      <button onclick="logout()">Log out</button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="bills" class="active" onclick="showTab('bills')">Enter Bill</button>
+    <button data-tab="ledger" onclick="showTab('ledger')">Bill Ledger</button>
+    <button data-tab="buyers" onclick="showTab('buyers')">Buyers &amp; Demand</button>
+    <button data-tab="calls" onclick="showTab('calls')">Call List</button>
+    <button data-tab="dash" class="admin-only" onclick="showTab('dash')">Profit Dashboard</button>
+  </nav>
+
+  <main>
+    <!-- ENTER BILL -->
+    <div class="tabpane active" id="tab-bills">
+      <div class="card">
+        <h2>Record a bill</h2>
+        <p class="sub">Enter the values from Tally. Choose <b>Buy</b> for a purchase bill, <b>Sell</b> for a sales bill. Attach the PDF as proof (optional).</p>
+        <div class="grid">
+          <div><label class="f">Type</label>
+            <select id="b_type"><option value="buy">Buy (purchase)</option><option value="sell">Sell (sales)</option></select></div>
+          <div><label class="f">Bill / Invoice No.</label><input id="b_no" placeholder="e.g. INV-102"></div>
+          <div><label class="f">Date</label><input id="b_date" type="date"></div>
+          <div><label class="f">Party (buyer/supplier)</label><input id="b_party" placeholder="e.g. Cadbury Traders"></div>
+          <div><label class="f">Product</label><input id="b_prod" placeholder="e.g. Cocoa powder"></div>
+          <div><label class="f">Quantity (kg)</label><input id="b_qty" type="number" step="any" placeholder="0"></div>
+          <div><label class="f">Amount (₹, total)</label><input id="b_amt" type="number" step="any" placeholder="0"></div>
+          <div><label class="f">Attach bill PDF</label><input id="b_file" type="file" accept="application/pdf">
+            <div class="file-note">Stored in this browser only.</div></div>
+        </div>
+        <div style="margin-top:16px"><button class="btn dark" onclick="saveBill()">Save bill</button></div>
+      </div>
+    </div>
+
+    <!-- LEDGER -->
+    <div class="tabpane" id="tab-ledger">
+      <div class="card">
+        <h2>Bill ledger</h2>
+        <p class="sub">Every buy &amp; sell bill entered. Matching sell bills feed the profit dashboard &amp; reorder timing.</p>
+        <div id="ledgerBody"></div>
+      </div>
+    </div>
+
+    <!-- BUYERS -->
+    <div class="tabpane" id="tab-buyers">
+      <div class="card">
+        <h2>Add a buyer</h2>
+        <p class="sub">Set each buyer's typical monthly demand and how often they reorder. The Call List tells you who's due.</p>
+        <div class="grid">
+          <div><label class="f">Buyer name</label><input id="y_name" placeholder="e.g. Sweet World"></div>
+          <div><label class="f">Phone</label><input id="y_phone" placeholder="e.g. 98xxxxxxxx"></div>
+          <div><label class="f">Product</label><input id="y_prod" placeholder="e.g. Cocoa powder"></div>
+          <div><label class="f">Monthly demand (kg)</label><input id="y_demand" type="number" step="any" placeholder="0"></div>
+          <div><label class="f">Reorder every (days)</label><input id="y_cycle" type="number" placeholder="30" value="30"></div>
+        </div>
+        <div style="margin-top:16px"><button class="btn dark" onclick="saveBuyer()">Save buyer</button></div>
+      </div>
+      <div class="card">
+        <h2>Buyer register</h2>
+        <p class="sub">Last order date is picked up automatically from sell bills matched by name.</p>
+        <div id="buyersBody"></div>
+      </div>
+    </div>
+
+    <!-- CALL LIST -->
+    <div class="tabpane" id="tab-calls">
+      <div class="card">
+        <h2>Who to call</h2>
+        <p class="sub">Sorted by most overdue. "Due" = a reorder cycle has passed since their last sell bill (or since added, if none yet).</p>
+        <div id="callsBody"></div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD (ADMIN) -->
+    <div class="tabpane" id="tab-dash">
+      <div class="stats" id="statCards"></div>
+      <div class="card">
+        <h2>Profit by matched product</h2>
+        <p class="sub">Buy vs sell totals per product. Profit = total sell − total buy.</p>
+        <div id="profitBody"></div>
+      </div>
+      <div class="card">
+        <h2>Profit by buyer</h2>
+        <p class="sub">Total you've sold to each buyer.</p>
+        <div id="buyerRevBody"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================= CONFIG ================= */
+/* Change these two codes to whatever you like. Keep them private. */
+const CONFIG = {
+  adminCode: "choco-admin",   // <-- admin: full access incl. profit dashboard
+  staffCode: "choco-staff"    // <-- staff: enter bills + buyers only
+};
+
+/* ================= STORAGE ================= */
+const DB = {
+  get bills(){ return JSON.parse(localStorage.getItem('ctd_bills')||'[]'); },
+  set bills(v){ localStorage.setItem('ctd_bills', JSON.stringify(v)); },
+  get buyers(){ return JSON.parse(localStorage.getItem('ctd_buyers')||'[]'); },
+  set buyers(v){ localStorage.setItem('ctd_buyers', JSON.stringify(v)); }
+};
+let ROLE = null;
+
+/* ================= HELPERS ================= */
+const $ = id => document.getElementById(id);
+const money = n => '₹' + (Number(n)||0).toLocaleString('en-IN',{maximumFractionDigits:0});
+const uid = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const today = () => new Date().toISOString().slice(0,10);
+const daysBetween = (a,b) => Math.floor((new Date(b)-new Date(a))/86400000);
+function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2200); }
+function fileToDataURL(f){ return new Promise(r=>{ if(!f) return r(null); const rd=new FileReader(); rd.onload=()=>r(rd.result); rd.readAsDataURL(f); }); }
+
+/* ================= LOGIN ================= */
+function doLogin(){
+  const c = $('code').value.trim();
+  if(c===CONFIG.adminCode) ROLE='admin';
+  else if(c===CONFIG.staffCode) ROLE='staff';
+  else { $('loginErr').textContent='Wrong access code.'; return; }
+  sessionStorage.setItem('ctd_role',ROLE);
+  enterApp();
+}
+function logout(){ sessionStorage.removeItem('ctd_role'); location.reload(); }
+function enterApp(){
+  $('login').style.display='none';
+  $('app').style.display='block';
+  $('roleBadge').textContent = ROLE.toUpperCase();
+  $('whoami').textContent = ROLE==='admin' ? 'Admin' : 'Staff';
+  document.querySelectorAll('.admin-only').forEach(e=> e.style.display = ROLE==='admin' ? '' : 'none');
+  $('b_date').value = today();
+  renderAll();
+}
+
+/* ================= BILLS ================= */
+async function saveBill(){
+  const b = {
+    id: uid(),
+    type: $('b_type').value,
+    no: $('b_no').value.trim(),
+    date: $('b_date').value || today(),
+    party: $('b_party').value.trim(),
+    prod: $('b_prod').value.trim(),
+    qty: Number($('b_qty').value)||0,
+    amt: Number($('b_amt').value)||0,
+    file: null
+  };
+  if(!b.party || !b.amt){ toast('Party and amount are required'); return; }
+  b.file = await fileToDataURL($('b_file').files[0]);
+  const arr = DB.bills; arr.push(b); DB.bills = arr;
+  ['b_no','b_party','b_prod','b_qty','b_amt'].forEach(x=>$(x).value='');
+  $('b_file').value='';
+  toast('Bill saved');
+  renderAll();
+}
+function delBill(id){ if(!confirm('Delete this bill?'))return; DB.bills = DB.bills.filter(b=>b.id!==id); renderAll(); }
+
+function renderLedger(){
+  const arr = [...DB.bills].sort((a,b)=> b.date.localeCompare(a.date));
+  if(!arr.length){ $('ledgerBody').innerHTML='<div class="empty">No bills yet. Add one from “Enter Bill”.</div>'; return; }
+  let rows = arr.map(b=>`<tr>
+    <td>${b.date}</td>
+    <td><span class="pill ${b.type==='sell'?'ok':'soon'}">${b.type.toUpperCase()}</span></td>
+    <td>${b.no||'—'}</td><td>${b.party||'—'}</td><td>${b.prod||'—'}</td>
+    <td>${b.qty?b.qty+' kg':'—'}</td><td>${money(b.amt)}</td>
+    <td>${b.file?`<a class="billlink" href="${b.file}" target="_blank">PDF</a>`:'—'}</td>
+    <td><button class="link-del" onclick="delBill('${b.id}')">delete</button></td></tr>`).join('');
+  $('ledgerBody').innerHTML = `<table><thead><tr>
+    <th>Date</th><th>Type</th><th>Bill No.</th><th>Party</th><th>Product</th><th>Qty</th><th>Amount</th><th>Bill</th><th></th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+/* ================= BUYERS ================= */
+function saveBuyer(){
+  const y = {
+    id: uid(),
+    name: $('y_name').value.trim(),
+    phone: $('y_phone').value.trim(),
+    prod: $('y_prod').value.trim(),
+    demand: Number($('y_demand').value)||0,
+    cycle: Number($('y_cycle').value)||30,
+    added: today()
+  };
+  if(!y.name){ toast('Buyer name is required'); return; }
+  const arr = DB.buyers; arr.push(y); DB.buyers = arr;
+  ['y_name','y_phone','y_prod','y_demand'].forEach(x=>$(x).value=''); $('y_cycle').value='30';
+  toast('Buyer saved');
+  renderAll();
+}
+function delBuyer(id){ if(!confirm('Remove this buyer?'))return; DB.buyers = DB.buyers.filter(y=>y.id!==id); renderAll(); }
+
+/* last sell bill date for a buyer (match by name, case-insensitive) */
+function lastOrder(name){
+  const sells = DB.bills.filter(b=>b.type==='sell' && b.party.toLowerCase()===name.toLowerCase())
+    .sort((a,b)=>b.date.localeCompare(a.date));
+  return sells.length ? sells[0].date : null;
+}
+function buyerStatus(y){
+  const last = lastOrder(y.name) || y.added;
+  const since = daysBetween(last, today());
+  const due = since - y.cycle;                 // >0 => overdue
+  let label, cls;
+  if(due>=0){ label='Due now'; cls='due'; }
+  else if(due>=-5){ label='Due soon'; cls='soon'; }
+  else { label='On track'; cls='ok'; }
+  return { last, since, due, label, cls };
+}
+function renderBuyers(){
+  const arr = DB.buyers;
+  if(!arr.length){ $('buyersBody').innerHTML='<div class="empty">No buyers yet. Add one above.</div>'; return; }
+  let rows = arr.map(y=>{
+    const s = buyerStatus(y);
+    return `<tr>
+      <td><b>${y.name}</b></td><td>${y.phone||'—'}</td><td>${y.prod||'—'}</td>
+      <td>${y.demand?y.demand+' kg/mo':'—'}</td><td>${y.cycle} d</td>
+      <td>${s.last}</td><td><span class="pill ${s.cls}">${s.label}</span></td>
+      <td><button class="link-del" onclick="delBuyer('${y.id}')">remove</button></td></tr>`;
+  }).join('');
+  $('buyersBody').innerHTML = `<table><thead><tr>
+    <th>Buyer</th><th>Phone</th><th>Product</th><th>Demand</th><th>Cycle</th><th>Last order</th><th>Status</th><th></th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+/* ================= CALL LIST ================= */
+function renderCalls(){
+  const arr = DB.buyers.map(y=>({y, s:buyerStatus(y)}))
+    .filter(o=>o.s.due>=-5)             // due or due soon
+    .sort((a,b)=> b.s.due - a.s.due);   // most overdue first
+  if(!arr.length){ $('callsBody').innerHTML='<div class="empty">Nobody is due right now. 👍</div>'; return; }
+  let rows = arr.map(o=>{
+    const overdue = o.s.due>=0 ? `${o.s.due} d overdue` : `in ${-o.s.due} d`;
+    return `<tr>
+      <td><b>${o.y.name}</b></td><td>${o.y.phone||'—'}</td><td>${o.y.prod||'—'}</td>
+      <td>${o.y.demand?o.y.demand+' kg':'—'}</td><td>${o.s.last}</td>
+      <td><span class="pill ${o.s.cls}">${o.s.label}</span></td><td>${overdue}</td></tr>`;
+  }).join('');
+  $('callsBody').innerHTML = `<table><thead><tr>
+    <th>Buyer</th><th>Phone</th><th>Product</th><th>Order qty</th><th>Last order</th><th>Status</th><th>Timing</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+/* ================= DASHBOARD (ADMIN) ================= */
+function renderDash(){
+  if(ROLE!=='admin') return;
+  const bills = DB.bills;
+  const buy = bills.filter(b=>b.type==='buy').reduce((s,b)=>s+b.amt,0);
+  const sell = bills.filter(b=>b.type==='sell').reduce((s,b)=>s+b.amt,0);
+  const profit = sell - buy;
+  const margin = sell ? (profit/sell*100) : 0;
+  $('statCards').innerHTML = `
+    <div class="stat"><div class="lbl">Total purchases</div><div class="val">${money(buy)}</div></div>
+    <div class="stat"><div class="lbl">Total sales</div><div class="val">${money(sell)}</div></div>
+    <div class="stat"><div class="lbl">Net profit</div><div class="val ${profit>=0?'pos':'neg'}">${money(profit)}</div></div>
+    <div class="stat"><div class="lbl">Margin</div><div class="val ${profit>=0?'pos':'neg'}">${margin.toFixed(1)}%</div></div>`;
+
+  // by product
+  const P = {};
+  bills.forEach(b=>{ const k=(b.prod||'(unspecified)').toLowerCase();
+    P[k]=P[k]||{name:b.prod||'(unspecified)',buy:0,sell:0};
+    P[k][b.type]+=b.amt; });
+  const prods = Object.values(P).sort((a,b)=>(b.sell-b.buy)-(a.sell-a.buy));
+  if(!prods.length){ $('profitBody').innerHTML='<div class="empty">No bills yet.</div>'; }
+  else{
+    $('profitBody').innerHTML = `<table><thead><tr>
+      <th>Product</th><th>Bought</th><th>Sold</th><th>Profit</th></tr></thead><tbody>`+
+      prods.map(p=>{const pr=p.sell-p.buy;return `<tr><td>${p.name}</td><td>${money(p.buy)}</td><td>${money(p.sell)}</td>
+        <td class="${pr>=0?'pos':'neg'}">${money(pr)}</td></tr>`;}).join('')+`</tbody></table>`;
+  }
+
+  // by buyer (sales only)
+  const B = {};
+  bills.filter(b=>b.type==='sell').forEach(b=>{ const k=(b.party||'—').toLowerCase();
+    B[k]=B[k]||{name:b.party||'—',sell:0,n:0}; B[k].sell+=b.amt; B[k].n++; });
+  const buyers = Object.values(B).sort((a,b)=>b.sell-a.sell);
+  if(!buyers.length){ $('buyerRevBody').innerHTML='<div class="empty">No sales yet.</div>'; }
+  else{
+    $('buyerRevBody').innerHTML = `<table><thead><tr>
+      <th>Buyer</th><th>Orders</th><th>Total sold</th></tr></thead><tbody>`+
+      buyers.map(x=>`<tr><td>${x.name}</td><td>${x.n}</td><td>${money(x.sell)}</td></tr>`).join('')+`</tbody></table>`;
+  }
+}
+
+/* ================= TABS + RENDER ================= */
+function showTab(t){
+  document.querySelectorAll('.tabpane').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav.tabs button').forEach(b=>b.classList.remove('active'));
+  $('tab-'+t).classList.add('active');
+  document.querySelector(`nav.tabs button[data-tab="${t}"]`).classList.add('active');
+}
+function renderAll(){ renderLedger(); renderBuyers(); renderCalls(); renderDash(); }
+
+/* auto-login if session active */
+(function(){ const r=sessionStorage.getItem('ctd_role'); if(r){ ROLE=r; enterApp(); } })();
+</script>
+</body>
+</html>
