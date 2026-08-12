@@ -502,6 +502,9 @@ async function loadProfile(){
 
   profile=data;
 
+  // Staff must always start in the entry area, never the admin dashboard.
+  active = profile.role === "admin" ? "dashboard" : "sales";
+
   renderApp();
 
   await loadAll();
@@ -663,52 +666,18 @@ function renderApp(){
 
 
 function renderNav(){
-
   let items;
-
   if(profile.role==="admin"){
-
-    items=[
-      ["dashboard","Dashboard"],
-      ["sales","Sales"],
-      ["purchases","Purchases"],
-      ["payments","Payments"],
-      ["parties","Parties"],
-      ["products","Products"],
-      ["stock","Stock"],
-      ["expenses","Expenses"],
-      ["ledger","Ledger"]
-    ];
-
+    items=[["dashboard","Dashboard"],["sales","Sales"],["purchases","Purchases"],["payments","Payments"],["parties","Parties"],["products","Products"],["stock","Stock"],["expenses","Expenses"],["ledger","Ledger"]];
   }else{
-
-    items=[
-      ["dashboard","Dashboard"],
-      ["sales","Enter Sale"],
-      ["purchases","Enter Purchase"],
-      ["payments","Payments"],
-      ["parties","Buyers & Demand"],
-      ["ledger","Bill Ledger"]
-    ];
-
+    items=[["sales","Enter Sale"],["purchases","Enter Purchase"],["payments","Payments"],["parties","Buyers & Demand"],["ledger","Bill Ledger"]];
   }
-
-  document.getElementById("nav").innerHTML=
-  items.map(([id,label])=>`
-
-    <button
-      class="${active===id?"active":""}"
-      onclick="go('${id}')"
-    >
-      ${label}
-    </button>
-
-  `).join("");
-
+  document.getElementById("nav").innerHTML=items.map(([id,label])=>`<button class="${active===id?"active":""}" onclick="go('${id}')">${label}</button>`).join("");
 }
 
-
 function go(page){
+
+  if(profile?.role !== "admin" && page === "dashboard") page="sales";
 
   active=page;
 
@@ -722,6 +691,11 @@ function go(page){
 function renderPage(){
 
   const main=document.getElementById("main");
+
+  if(profile?.role !== "admin" && active === "dashboard") {
+    active="sales";
+    renderNav();
+  }
 
   if(active==="dashboard")
     return dashboardPage(main);
@@ -3125,6 +3099,16 @@ function editBill(id){
         ${input("Status","editBillStatus",bill.status||"")}
         ${input("Notes","editBillNotes",bill.notes||"")}
 
+        <div class="field two">
+          <label>Bill PDF (Add / Replace)</label>
+          <div class="filebox">
+            <input id="editBillFile" type="file" accept="application/pdf,.pdf">
+            <div class="hint" style="margin-top:7px">
+              ${bill.file ? "PDF already attached. Upload a new PDF to replace it." : "No PDF attached. Add the bill PDF here."}
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <div class="form-actions">
@@ -3173,6 +3157,13 @@ async function saveBillEdit(e,id){
   const oldProduct=oldBill.prod||"";
   const oldQty=Number(oldBill.qty||0);
 
+  let fileUrl=oldBill.file||"";
+  const editFile=document.getElementById("editBillFile")?.files?.[0];
+  if(editFile){
+    fileUrl=await uploadBill(editFile,id);
+    if(!fileUrl)return;
+  }
+
   const {error}=await db
   .from("bills")
   .update({
@@ -3187,7 +3178,8 @@ async function saveBillEdit(e,id){
     credit:Math.max(0,amount-paid),
     payment_mode:document.getElementById("editBillMode").value,
     status:document.getElementById("editBillStatus").value.trim(),
-    notes:document.getElementById("editBillNotes").value.trim()
+    notes:document.getElementById("editBillNotes").value.trim(),
+    file:fileUrl
   })
   .eq("id",id);
 
