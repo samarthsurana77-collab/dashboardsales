@@ -178,6 +178,7 @@
 
     <!-- DASHBOARD (ADMIN) -->
     <div class="tabpane" id="tab-dash">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px" id="periodBar"></div>
       <div class="stats" id="statCards"></div>
       <div class="card">
         <h2>Profit by matched product</h2>
@@ -195,22 +196,49 @@
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ================= CONFIG ================= */
-/* Change these two codes to whatever you like. Keep them private. */
+/* 1) Access codes — change these, keep them private. */
 const CONFIG = {
   adminCode: "choco-admin",   // <-- admin: full access incl. profit dashboard
   staffCode: "choco-staff"    // <-- staff: enter bills + buyers only
 };
 
-/* ================= STORAGE ================= */
-const DB = {
-  get bills(){ return JSON.parse(localStorage.getItem('ctd_bills')||'[]'); },
-  set bills(v){ localStorage.setItem('ctd_bills', JSON.stringify(v)); },
-  get buyers(){ return JSON.parse(localStorage.getItem('ctd_buyers')||'[]'); },
-  set buyers(v){ localStorage.setItem('ctd_buyers', JSON.stringify(v)); }
+/* 2) Supabase — paste your Project URL and anon (public) key here.
+      Found in Supabase → Project Settings → API. */
+const SUPA = {
+  url:     "https://snlaqqyktcmpyxfpffhd.supabase.co",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNubGFxcXlrdGNtcHl4ZnBmZmhkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODY1NjE3MjUsImV4cCI6MjEwMjEzNzcyNX0.Fan7LeGQVwvhNpSOsYlVG1ZGs3l68giF3i0UEcrPCEw"
 };
+
+let sb = null;
+try { sb = window.supabase.createClient(SUPA.url, SUPA.anonKey); }
+catch(e){ console.error('Supabase init failed', e); }
+
+/* ================= LIVE CACHE ================= */
+/* Data lives in Supabase. We keep an in-memory copy so the screens
+   render instantly; every save/delete reloads it from the server. */
+const STATE = { bills: [], buyers: [] };
+const DB = { get bills(){ return STATE.bills; }, get buyers(){ return STATE.buyers; } };
 let ROLE = null;
+
+async function loadAll(){
+  if(!sb || SUPA.url.includes('YOUR-')){
+    toast('Add your Supabase URL & key in the file'); return;
+  }
+  try{
+    const [r1, r2] = await Promise.all([
+      sb.from('bills').select('*'),
+      sb.from('buyers').select('*')
+    ]);
+    if(r1.error) throw r1.error;
+    if(r2.error) throw r2.error;
+    STATE.bills  = (r1.data||[]).map(b=>({ ...b, amt:Number(b.amt)||0, qty:Number(b.qty)||0 }));
+    STATE.buyers = (r2.data||[]).map(y=>({ ...y, demand:Number(y.demand)||0, cycle:Number(y.cycle)||30 }));
+    renderAll();
+  }catch(e){ console.error(e); toast('Could not load — check Supabase setup'); }
+}
 
 /* ================= HELPERS ================= */
 const $ = id => document.getElementById(id);
@@ -239,7 +267,7 @@ function enterApp(){
   document.querySelectorAll('.admin-only').forEach(e=> e.style.display = ROLE==='admin' ? '' : 'none');
   if(ROLE!=='admin') showTab('bills');   // staff always start on Enter Bill, never an admin pane
   $('b_date').value = today();
-  renderAll();
+  loadAll();
 }
 
 /* ================= BILLS ================= */
@@ -257,13 +285,19 @@ async function saveBill(){
   };
   if(!b.party || !b.amt){ toast('Party and amount are required'); return; }
   b.file = await fileToDataURL($('b_file').files[0]);
-  const arr = DB.bills; arr.push(b); DB.bills = arr;
+  const { error } = await sb.from('bills').insert(b);
+  if(error){ console.error(error); toast('Save failed'); return; }
   ['b_no','b_party','b_prod','b_qty','b_amt'].forEach(x=>$(x).value='');
   $('b_file').value='';
   toast('Bill saved');
-  renderAll();
+  await loadAll();
 }
-function delBill(id){ if(!confirm('Delete this bill?'))return; DB.bills = DB.bills.filter(b=>b.id!==id); renderAll(); }
+async function delBill(id){
+  if(!confirm('Delete this bill?')) return;
+  const { error } = await sb.from('bills').delete().eq('id', id);
+  if(error){ console.error(error); toast('Delete failed'); return; }
+  await loadAll();
+}
 
 function renderLedger(){
   const arr = [...DB.bills].sort((a,b)=> b.date.localeCompare(a.date));
@@ -292,12 +326,19 @@ function saveBuyer(){
     added: today()
   };
   if(!y.name){ toast('Buyer name is required'); return; }
-  const arr = DB.buyers; arr.push(y); DB.buyers = arr;
-  ['y_name','y_phone','y_prod','y_demand'].forEach(x=>$(x).value=''); $('y_cycle').value='30';
-  toast('Buyer saved');
-  renderAll();
+  sb.from('buyers').insert(y).then(({error})=>{
+    if(error){ console.error(error); toast('Save failed'); return; }
+    ['y_name','y_phone','y_prod','y_demand'].forEach(x=>$(x).value=''); $('y_cycle').value='30';
+    toast('Buyer saved');
+    loadAll();
+  });
 }
-function delBuyer(id){ if(!confirm('Remove this buyer?'))return; DB.buyers = DB.buyers.filter(y=>y.id!==id); renderAll(); }
+async function delBuyer(id){
+  if(!confirm('Remove this buyer?')) return;
+  const { error } = await sb.from('buyers').delete().eq('id', id);
+  if(error){ console.error(error); toast('Delete failed'); return; }
+  await loadAll();
+}
 
 /* last sell bill date for a buyer (match by name, case-insensitive) */
 function lastOrder(name){
@@ -350,13 +391,27 @@ function renderCalls(){
 }
 
 /* ================= DASHBOARD (ADMIN) ================= */
+let DASH_PERIOD = 'month';
+function setPeriod(p){ DASH_PERIOD = p; renderDash(); }
+function periodStart(p){
+  const d = new Date();
+  if(p==='week'){ d.setDate(d.getDate()-7); }
+  else if(p==='month'){ d.setMonth(d.getMonth()-1); }
+  else if(p==='year'){ d.setFullYear(d.getFullYear()-1); }
+  else return '0000-01-01';
+  return d.toISOString().slice(0,10);
+}
 function renderDash(){
   if(ROLE!=='admin') return;
-  const bills = DB.bills;
+  const from = periodStart(DASH_PERIOD);
+  const bills = DB.bills.filter(b => (b.date||'') >= from);   // period filter
   const buy = bills.filter(b=>b.type==='buy').reduce((s,b)=>s+b.amt,0);
   const sell = bills.filter(b=>b.type==='sell').reduce((s,b)=>s+b.amt,0);
   const profit = sell - buy;
   const margin = sell ? (profit/sell*100) : 0;
+  const tabs = [['week','This week'],['month','This month'],['year','This year'],['all','All time']]
+    .map(([k,l])=>`<button class="btn sm ${DASH_PERIOD===k?'dark':'ghost'}" onclick="setPeriod('${k}')">${l}</button>`).join(' ');
+  $('periodBar').innerHTML = tabs;
   $('statCards').innerHTML = `
     <div class="stat"><div class="lbl">Total purchases</div><div class="val">${money(buy)}</div></div>
     <div class="stat"><div class="lbl">Total sales</div><div class="val">${money(sell)}</div></div>
