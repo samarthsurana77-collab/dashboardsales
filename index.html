@@ -502,8 +502,15 @@ async function loadProfile(){
 
   profile=data;
 
-  renderApp();
+  if(!["admin","staff"].includes(String(profile.role||"").toLowerCase())){
+    showLogin("Invalid profile role. Please ask admin to set the profile role to admin or staff.");
+    return;
+  }
 
+  profile.role=String(profile.role).toLowerCase();
+  active=profile.role==="admin" ? "dashboard" : "sales";
+
+  renderApp();
   await loadAll();
 
 }
@@ -662,96 +669,80 @@ function renderApp(){
 }
 
 
-function renderNav(){
-
-  let items;
-
-  if(profile.role==="admin"){
-
-    items=[
-      ["dashboard","Dashboard"],
-      ["sales","Sales"],
-      ["purchases","Purchases"],
-      ["payments","Payments"],
-      ["parties","Parties"],
-      ["products","Products"],
-      ["stock","Stock"],
-      ["expenses","Expenses"],
-      ["ledger","Ledger"]
-    ];
-
-  }else{
-
-    items=[
-      ["dashboard","Dashboard"],
-      ["sales","Enter Sale"],
-      ["purchases","Enter Purchase"],
-      ["payments","Payments"],
-      ["parties","Buyers & Demand"],
-      ["ledger","Bill Ledger"]
-    ];
-
-  }
-
-  document.getElementById("nav").innerHTML=
-  items.map(([id,label])=>`
-
-    <button
-      class="${active===id?"active":""}"
-      onclick="go('${id}')"
-    >
-      ${label}
-    </button>
-
-  `).join("");
-
+function isAdmin(){
+  return !!profile && String(profile.role||"").toLowerCase()==="admin";
 }
 
+function allowedPages(){
+  return isAdmin()
+    ? ["dashboard","sales","purchases","payments","parties","products","stock","expenses","calllist","ledger"]
+    : ["sales","purchases","payments","parties","ledger"];
+}
+
+function renderNav(){
+
+  const items=isAdmin()
+    ? [
+        ["dashboard","Dashboard"],
+        ["sales","Sales"],
+        ["purchases","Purchases"],
+        ["payments","Payments"],
+        ["parties","Parties"],
+        ["products","Products"],
+        ["stock","Stock"],
+        ["expenses","Expenses"],
+        ["calllist","Who to Call"],
+        ["ledger","Ledger"]
+      ]
+    : [
+        ["sales","Enter Sale"],
+        ["purchases","Enter Purchase"],
+        ["payments","Payments"],
+        ["parties","Buyers & Demand"],
+        ["ledger","Bill Ledger"]
+      ];
+
+  document.getElementById("nav").innerHTML=
+    items.map(([id,label])=>`
+      <button class="${active===id?"active":""}" onclick="go('${id}')">${label}</button>
+    `).join("");
+}
 
 function go(page){
 
+  if(!allowedPages().includes(page)){
+    toast("You do not have access to this section.");
+    active=isAdmin() ? "dashboard" : "sales";
+    renderNav();
+    renderPage();
+    return;
+  }
+
   active=page;
-
   renderNav();
-
   renderPage();
-
 }
-
 
 function renderPage(){
 
   const main=document.getElementById("main");
 
-  if(active==="dashboard")
-    return dashboardPage(main);
+  if(!allowedPages().includes(active)){
+    active=isAdmin() ? "dashboard" : "sales";
+    renderNav();
+  }
 
-  if(active==="sales")
-    return salesPage(main);
-
-  if(active==="purchases")
-    return purchasePage(main);
-
-  if(active==="payments")
-    return paymentsPage(main);
-
-  if(active==="parties")
-    return partiesPage(main);
-
-  if(active==="products")
-    return productsPage(main);
-
-  if(active==="stock")
-    return stockPage(main);
-
-  if(active==="expenses")
-    return expensesPage(main);
-
-  if(active==="ledger")
-    return ledgerPage(main);
-
+  if(active==="dashboard") return dashboardPage(main);
+  if(active==="sales") return salesPage(main);
+  if(active==="purchases") return purchasePage(main);
+  if(active==="payments") return paymentsPage(main);
+  if(active==="parties") return partiesPage(main);
+  if(active==="products") return productsPage(main);
+  if(active==="stock") return stockPage(main);
+  if(active==="expenses") return expensesPage(main);
+  if(active==="calllist") return callListPage(main);
+  if(active==="ledger") return ledgerPage(main);
 }
-
 
 /* =====================================================
    LOAD DATA
@@ -806,134 +797,145 @@ async function loadAll(){
 
 function dashboardPage(main){
 
-  const salesToday=
-    cache.bills
+  if(!isAdmin()){
+    active="sales";
+    renderNav();
+    return salesPage(main);
+  }
+
+  const salesToday=cache.bills
     .filter(x=>x.type==="sale" && x.date===today())
     .reduce((a,x)=>a+Number(x.amt||0),0);
 
-  const purchasesToday=
-    cache.bills
+  const purchasesToday=cache.bills
     .filter(x=>x.type==="purchase" && x.date===today())
     .reduce((a,x)=>a+Number(x.amt||0),0);
 
-  const paymentsToday=
-    cache.payments
+  const paymentsReceivedToday=cache.payments
+    .filter(x=>x.date===today() && (!x.type || x.type==="received"))
+    .reduce((a,x)=>a+Number(x.amount||0),0);
+
+  const paymentsMadeToday=cache.payments
+    .filter(x=>x.date===today() && x.type==="paid")
+    .reduce((a,x)=>a+Number(x.amount||0),0);
+
+  const expensesToday=cache.expenses
     .filter(x=>x.date===today())
     .reduce((a,x)=>a+Number(x.amount||0),0);
 
-  const outstanding=
-    cache.bills
+  const outstanding=cache.bills
     .filter(x=>x.type==="sale")
-    .reduce(
-      (a,x)=>a+
-      Math.max(
-        0,
-        Number(x.amt||0)-Number(x.paid||0)
-      ),
-      0
-    );
+    .reduce((a,x)=>a+Math.max(0,Number(x.amt||0)-Number(x.paid||0)),0);
 
-  const stockValue=
-    cache.products.reduce(
-      (a,x)=>
-      a+
-      Number(x.stock||0)*
-      Number(x.purchase_price||0),
-      0
-    );
+  const supplierOutstanding=cache.bills
+    .filter(x=>x.type==="purchase")
+    .reduce((a,x)=>a+Math.max(0,Number(x.amt||0)-Number(x.paid||0)),0);
+
+  const stockValue=cache.products.reduce(
+    (a,x)=>a+Number(x.stock||0)*Number(x.purchase_price||0),0
+  );
+
+  // Estimated cost of goods sold using each product's purchase price.
+  const cogsToday=cache.bills
+    .filter(x=>x.type==="sale" && x.date===today())
+    .reduce((a,x)=>{
+      const p=cache.products.find(
+        p=>String(p.name||"").toLowerCase()===String(x.prod||"").toLowerCase()
+      );
+      return a+Number(x.qty||0)*Number(p?.purchase_price||0);
+    },0);
+
+  const grossProfitToday=salesToday-cogsToday;
+  const netProfitToday=grossProfitToday-expensesToday;
+  const cashMovement=paymentsReceivedToday-paymentsMadeToday;
 
   main.innerHTML=`
 
   <div class="page-title">
-
     <div>
-
-      <h2>Dashboard</h2>
-
-      <div class="hint">
-        ${today()}
-      </div>
-
+      <h2>Admin Dashboard</h2>
+      <div class="hint">${today()} · Full business view</div>
     </div>
-
-    <button
-      class="btn"
-      onclick="loadAll();toast('Dashboard refreshed')"
-    >
-      Refresh
-    </button>
-
+    <button class="btn" onclick="loadAll();toast('Dashboard refreshed')">Refresh</button>
   </div>
 
   <div class="grid">
-
     ${metric("Today's Sales",money(salesToday),"Sales entered today")}
-
-    ${metric("Today's Purchases",money(purchasesToday),"Purchases entered today")}
-
-    ${metric("Payments Today",money(paymentsToday),"Money received / paid")}
-
-    ${metric("Outstanding",money(outstanding),"Customer credit")}
-
+    ${metric("Today's Purchases",money(purchasesToday),"Purchase value today")}
+    ${metric("Gross Profit",money(grossProfitToday),"Sales minus estimated product cost")}
+    ${metric("Net Profit",money(netProfitToday),"Gross profit minus today's expenses")}
   </div>
 
   <div class="grid" style="margin-top:14px">
+    ${metric("Cash Received",money(paymentsReceivedToday),"Customer payments today")}
+    ${metric("Cash Paid",money(paymentsMadeToday),"Supplier payments today")}
+    ${metric("Customer Outstanding",money(outstanding),"Sales credit still due")}
+    ${metric("Supplier Outstanding",money(supplierOutstanding),"Purchase credit still due")}
+  </div>
 
-    ${metric("Stock Value",money(stockValue),"Purchase value")}
-
-    ${metric("Products",cache.products.length,"Products in inventory")}
-
-    ${metric("Customers",cache.buyers.length,"Buyers / parties")}
-
-    ${metric("Bills",cache.bills.length,"Total bills")}
-
+  <div class="grid" style="margin-top:14px">
+    ${metric("Stock Value",money(stockValue),"Current stock × purchase price")}
+    ${metric("Today's Expenses",money(expensesToday),"Business expenses today")}
+    ${metric("Net Cash Movement",money(cashMovement),"Received minus paid today")}
+    ${metric("Low Stock Items",cache.products.filter(x=>Number(x.stock||0)<=Number(x.min_stock||0)).length,"Items needing attention")}
   </div>
 
   <div class="section">
+    <h3>Business Analysis</h3>
+    <div class="grid3">
+      <div class="card">
+        <b>Sales vs Purchases</b>
+        <div class="hint" style="margin-top:8px">
+          Sales: <b>${money(salesToday)}</b><br>
+          Purchases: <b>${money(purchasesToday)}</b><br>
+          Trading difference: <b>${money(salesToday-purchasesToday)}</b>
+        </div>
+      </div>
 
-    <h3>Today's Activity</h3>
+      <div class="card">
+        <b>Profitability</b>
+        <div class="hint" style="margin-top:8px">
+          Estimated COGS: <b>${money(cogsToday)}</b><br>
+          Gross Profit: <b>${money(grossProfitToday)}</b><br>
+          Net Profit: <b>${money(netProfitToday)}</b>
+        </div>
+      </div>
 
-    <div class="card">
+      <div class="card">
+        <b>Collections</b>
+        <div class="hint" style="margin-top:8px">
+          Customer outstanding: <b>${money(outstanding)}</b><br>
+          Supplier outstanding: <b>${money(supplierOutstanding)}</b><br>
+          Cash movement today: <b>${money(cashMovement)}</b>
+        </div>
+      </div>
+    </div>
+  </div>
 
-      ${
-        cache.bills.filter(x=>x.date===today()).length===0
-        ?
-        `<div class="empty">No activity today yet.</div>`
-        :
-        `<div class="table-wrap">
-
-        <table>
-
-        <tr>
-          <th>Date</th>
-          <th>Type</th>
-          <th>Party</th>
-          <th>Product</th>
-          <th>Amount</th>
-          <th>Payment</th>
-        </tr>
-
-        ${
-          cache.bills
-          .filter(x=>x.date===today())
-          .slice(0,15)
-          .map(billRow)
-          .join("")
-        }
-
-        </table>
-
-        </div>`
-      }
-
+  <div class="section">
+    <div class="page-title" style="margin-bottom:10px">
+      <h3>Today's Activity</h3>
+      <button class="btn alt" onclick="go('calllist')">Who to Call</button>
     </div>
 
+    <div class="card">
+      ${
+        cache.bills.filter(x=>x.date===today()).length===0
+        ? `<div class="empty">No bill activity today yet.</div>`
+        : `<div class="table-wrap">
+          <table>
+            <tr>
+              <th>Date</th><th>Type</th><th>Party</th><th>Product</th><th>Amount</th><th>Payment</th>
+            </tr>
+            ${cache.bills.filter(x=>x.date===today()).slice(0,15).map(billRow).join("")}
+          </table>
+        </div>`
+      }
+    </div>
   </div>
 
   `;
-
 }
-
 
 function metric(label,value,small){
 
@@ -1489,16 +1491,12 @@ async function savePurchase(e){
 function paymentsPage(main){
 
   const outstanding=
-  cache.bills
-  .filter(x=>x.type==="sale")
-  .reduce(
-    (a,x)=>a+
-    Math.max(
-      0,
-      Number(x.amt||0)-Number(x.paid||0)
-    ),
-    0
-  );
+  cache.bills.filter(x=>x.type==="sale")
+  .reduce((a,x)=>a+Math.max(0,Number(x.amt||0)-Number(x.paid||0)),0);
+
+  const supplierOutstanding=
+  cache.bills.filter(x=>x.type==="purchase")
+  .reduce((a,x)=>a+Math.max(0,Number(x.amt||0)-Number(x.paid||0)),0);
 
   main.innerHTML=`
 
@@ -1508,7 +1506,7 @@ function paymentsPage(main){
       <h2>Payments</h2>
 
       <div class="hint">
-        Record money received later against customer credit.
+        Record customer receipts or supplier payments later against credit.
       </div>
     </div>
 
@@ -1528,23 +1526,38 @@ function paymentsPage(main){
 
         <div class="field">
 
-          <label>Customer</label>
+          <label>Party</label>
 
           <input
             id="paymentParty"
             required
-            list="paymentBuyerList"
+            list="paymentPartyList"
+            placeholder="Customer / Supplier"
           >
 
-          <datalist id="paymentBuyerList">
-
+          <datalist id="paymentPartyList">
             ${
               cache.buyers.map(
                 x=>`<option value="${esc(x.name)}">`
               ).join("")
             }
-
+            ${
+              cache.bills.map(
+                x=>`<option value="${esc(x.party)}">`
+              ).join("")
+            }
           </datalist>
+
+        </div>
+
+        <div class="field">
+
+          <label>Payment Type</label>
+
+          <select id="paymentType">
+            <option value="received">Received from Customer</option>
+            <option value="paid">Paid to Supplier</option>
+          </select>
 
         </div>
 
@@ -1609,6 +1622,7 @@ function paymentsPage(main){
       <tr>
         <th>Date</th>
         <th>Party</th>
+        <th>Type</th>
         <th>Bill</th>
         <th>Mode</th>
         <th>Amount</th>
@@ -1623,6 +1637,14 @@ function paymentsPage(main){
           <td>${esc(x.date)}</td>
 
           <td>${esc(x.party)}</td>
+
+          <td>
+            ${
+              x.type==="paid"
+              ? `<span class="pill green">PAID</span>`
+              : `<span class="pill blue">RECEIVED</span>`
+            }
+          </td>
 
           <td>${esc(x.bill_id||"-")}</td>
 
@@ -1655,86 +1677,77 @@ async function savePayment(e){
 
   e.preventDefault();
 
-  const amount=
-  Number(paymentAmount.value||0);
-
+  const amount=Number(paymentAmount.value||0);
   if(amount<=0){
-
     toast("Enter a valid amount");
-
     return;
+  }
 
+  const type=document.getElementById("paymentType")?.value||"received";
+  const billId=paymentBill.value||"";
+  const bill=billId ? cache.bills.find(x=>x.id===billId) : null;
+
+  if(bill){
+    const remaining=Math.max(0,Number(bill.amt||0)-Number(bill.paid||0));
+
+    if(amount>remaining){
+      toast("Payment exceeds the bill outstanding amount");
+      return;
+    }
+
+    if(type==="received" && bill.type!=="sale"){
+      toast("Received payment must be linked to a sale bill");
+      return;
+    }
+
+    if(type==="paid" && bill.type!=="purchase"){
+      toast("Supplier payment must be linked to a purchase bill");
+      return;
+    }
   }
 
   const id="PAY-"+Date.now();
 
   const {error}=await db
-  .from("payments")
-  .insert({
-
-    id,
-
-    date:paymentDate.value,
-
-    party:paymentParty.value,
-
-    bill_id:paymentBill.value||null,
-
-    type:"received",
-
-    amount,
-
-    mode:paymentMode.value,
-
-    notes:paymentNotes.value
-
-  });
+    .from("payments")
+    .insert({
+      id,
+      date:paymentDate.value,
+      party:paymentParty.value,
+      bill_id:billId||null,
+      type,
+      amount,
+      mode:paymentMode.value,
+      notes:paymentNotes.value,
+      created_by:user.id
+    });
 
   if(error){
-
     toast(error.message);
-
     return;
-
   }
 
-  if(paymentBill.value){
+  if(bill){
 
-    const bill=
-    cache.bills.find(
-      x=>x.id===paymentBill.value
-    );
+    const newPaid=Number(bill.paid||0)+amount;
 
-    if(bill){
-
-      const newPaid=
-      Number(bill.paid||0)+amount;
-
-      await db
+    const {error:updateError}=await db
       .from("bills")
       .update({
-
         paid:newPaid,
-
-        credit:
-        Math.max(
-          0,
-          Number(bill.amt||0)-newPaid
-        )
-
+        credit:Math.max(0,Number(bill.amt||0)-newPaid)
       })
       .eq("id",bill.id);
 
+    if(updateError){
+      toast("Payment saved, but bill balance update failed: "+updateError.message);
+      return;
     }
-
   }
 
-  toast("Payment recorded");
-
+  toast(type==="received" ? "Customer payment recorded" : "Supplier payment recorded");
   await loadAll();
-
 }
-
 
 /* =====================================================
    PARTIES
@@ -1931,10 +1944,126 @@ async function saveBuyer(e){
 
 
 /* =====================================================
+   WHO TO CALL - ADMIN ONLY
+===================================================== */
+
+function callListPage(main){
+
+  if(!isAdmin()){
+    active="sales";
+    renderNav();
+    return salesPage(main);
+  }
+
+  const rows=cache.buyers.map(buyer=>{
+
+    const sales=cache.bills
+      .filter(x=>x.type==="sale" && String(x.party||"").toLowerCase()===String(buyer.name||"").toLowerCase())
+      .sort((a,b)=>String(b.date).localeCompare(String(a.date)));
+
+    const lastSale=sales[0];
+    const cycle=Math.max(1,Number(buyer.cycle||30));
+    const lastDate=lastSale ? new Date(lastSale.date+"T00:00:00") : null;
+    const dueDate=lastDate
+      ? new Date(lastDate.getTime()+cycle*86400000)
+      : new Date((buyer.added||today())+"T00:00:00");
+
+    const daysUntil=Math.ceil((dueDate-new Date(today()+"T00:00:00"))/86400000);
+
+    const outstanding=cache.bills
+      .filter(x=>x.type==="sale" && String(x.party||"").toLowerCase()===String(buyer.name||"").toLowerCase())
+      .reduce((a,x)=>a+Math.max(0,Number(x.amt||0)-Number(x.paid||0)),0);
+
+    let priority="UPCOMING";
+    if(!lastSale) priority="NEW";
+    else if(daysUntil<=0) priority="CALL NOW";
+    else if(daysUntil<=7) priority="CALL SOON";
+
+    return {buyer,lastSale,cycle,dueDate,daysUntil,outstanding,priority};
+  }).sort((a,b)=>{
+    const rank={"CALL NOW":0,"CALL SOON":1,"NEW":2,"UPCOMING":3};
+    return (rank[a.priority]??9)-(rank[b.priority]??9) || a.daysUntil-b.daysUntil;
+  });
+
+  main.innerHTML=`
+
+  <div class="page-title">
+    <div>
+      <h2>Who to Call</h2>
+      <div class="hint">Admin-only customer reorder and collection list.</div>
+    </div>
+    <button class="btn" onclick="loadAll();toast('Call list refreshed')">Refresh</button>
+  </div>
+
+  <div class="notice">
+    Customers are ranked using their last sale and saved reorder cycle.
+    "CALL NOW" means the expected reorder date has arrived.
+  </div>
+
+  <div class="grid">
+    ${metric("Call Now",rows.filter(x=>x.priority==="CALL NOW").length,"Reorder cycle reached")}
+    ${metric("Call Soon",rows.filter(x=>x.priority==="CALL SOON").length,"Due within 7 days")}
+    ${metric("Customers",rows.length,"Buyer records")}
+    ${metric("Outstanding",money(rows.reduce((a,x)=>a+x.outstanding,0)),"Customer credit")}
+  </div>
+
+  <div class="section">
+    <div class="table-wrap">
+      <table>
+        <tr>
+          <th>Priority</th><th>Customer</th><th>Phone</th><th>Product</th>
+          <th>Demand</th><th>Last Sale</th><th>Expected Reorder</th>
+          <th>Outstanding</th><th>Action</th>
+        </tr>
+
+        ${
+          rows.length
+          ? rows.map(x=>`
+            <tr>
+              <td>
+                <span class="pill ${
+                  x.priority==="CALL NOW" ? "red" :
+                  x.priority==="CALL SOON" ? "blue" : "green"
+                }">${x.priority}</span>
+              </td>
+              <td><b>${esc(x.buyer.name)}</b></td>
+              <td>${esc(x.buyer.phone||"-")}</td>
+              <td>${esc(x.buyer.prod||"-")}</td>
+              <td>${x.buyer.demand||0}</td>
+              <td>${x.lastSale ? esc(x.lastSale.date) : "No sale yet"}</td>
+              <td>${x.dueDate.toISOString().slice(0,10)}</td>
+              <td>${money(x.outstanding)}</td>
+              <td class="actions">
+                <button class="btn alt" onclick="prefillPayment('${esc(x.buyer.name)}')">Payment</button>
+                ${
+                  x.buyer.phone
+                  ? `<a class="btn green" style="text-decoration:none" href="tel:${esc(x.buyer.phone)}">Call</a>`
+                  : ""
+                }
+              </td>
+            </tr>
+          `).join("")
+          : `<tr><td colspan="9"><div class="empty">No buyers added yet.</div></td></tr>`
+        }
+      </table>
+    </div>
+  </div>
+
+  `;
+}
+
+
+/* =====================================================
    PRODUCTS
 ===================================================== */
 
 function productsPage(main){
+  if(!isAdmin()){
+    active="sales";
+    renderNav();
+    return salesPage(main);
+  }
+
 
   main.innerHTML=`
 
@@ -2086,6 +2215,12 @@ async function saveProduct(e){
 ===================================================== */
 
 function stockPage(main){
+  if(!isAdmin()){
+    active="sales";
+    renderNav();
+    return salesPage(main);
+  }
+
 
   main.innerHTML=`
 
@@ -2195,6 +2330,12 @@ function stockPage(main){
 ===================================================== */
 
 function expensesPage(main){
+  if(!isAdmin()){
+    active="sales";
+    renderNav();
+    return salesPage(main);
+  }
+
 
   main.innerHTML=`
 
@@ -2606,7 +2747,7 @@ function saleTableRow(x){
         ?
         `<button
           class="btn alt"
-          onclick="downloadBill('${esc(x.file)}')"
+          onclick="downloadBill(decodeURIComponent('${encodeURIComponent(x.file)}'))"
         >
           Download
         </button>`
@@ -2680,7 +2821,7 @@ function ledgerRow(x){
         ?
         `<button
           class="btn alt"
-          onclick="downloadBill('${esc(x.file)}')"
+          onclick="downloadBill(decodeURIComponent('${encodeURIComponent(x.file)}'))"
         >
           Download PDF
         </button>`
