@@ -677,7 +677,8 @@ function renderNav(){
 
 function go(page){
 
-  if(profile?.role !== "admin" && page === "dashboard") page="sales";
+  const adminOnly=["dashboard","products","stock","expenses"];
+  if(profile?.role !== "admin" && adminOnly.includes(page)) page="sales";
 
   active=page;
 
@@ -693,6 +694,11 @@ function renderPage(){
   const main=document.getElementById("main");
 
   if(profile?.role !== "admin" && active === "dashboard") {
+    active="sales";
+    renderNav();
+  }
+
+  if(profile?.role !== "admin" && ["dashboard","products","stock","expenses"].includes(active)){
     active="sales";
     renderNav();
   }
@@ -974,26 +980,24 @@ function dashboardPage(main){
     .sort((a,b)=>b[1]-a[1])
     .slice(0,5);
 
-  const paymentReceivedToday =
-    allPayments
-      .filter(x=>
-        matchesRange(x.date,"today") &&
-        String(x.type||"").toLowerCase()==="received"
-      )
-      .reduce((a,x)=>a+Number(x.amount||0),0);
+  // Money received = money paid on sales made today + later payment entries today.
+  // This avoids counting a later payment twice.
+  const saleMoneyReceivedToday = todayBills
+    .filter(x=>x.type==="sale")
+    .reduce((a,x)=>a+Number(x.paid||0),0);
 
-  const paymentPaidToday =
-    allPayments
-      .filter(x=>
-        matchesRange(x.date,"today") &&
-        String(x.type||"").toLowerCase()==="paid"
-      )
-      .reduce((a,x)=>a+Number(x.amount||0),0);
+  const laterPaymentsReceivedToday = allPayments
+    .filter(x=>matchesRange(x.date,"today") && String(x.type||"").toLowerCase()==="received")
+    .reduce((a,x)=>a+Number(x.amount||0),0);
+
+  const paymentReceivedToday = saleMoneyReceivedToday + laterPaymentsReceivedToday;
+
+  const paymentPaidToday = allPayments
+    .filter(x=>matchesRange(x.date,"today") && String(x.type||"").toLowerCase()==="paid")
+    .reduce((a,x)=>a+Number(x.amount||0),0);
 
   const todayCashMovement =
-    paymentReceivedToday -
-    paymentPaidToday -
-    todayExpenses;
+    paymentReceivedToday - paymentPaidToday - todayExpenses;
 
   main.innerHTML=`
 
@@ -1676,9 +1680,14 @@ function salesPage(main){
 
         </div>
 
-        ${input("Quantity","saleQty","0","number")}
+        ${input("Quantity","saleQty","0","number",true)}
 
-        ${input("Total Amount","saleAmt","0","number")}
+        ${input("Total Amount","saleAmt","0","number",true)}
+
+        <div class="field two">
+          <label>Live Calculation</label>
+          <div id="saleCalcHint" class="hint">Select product and enter quantity.</div>
+        </div>
 
         <div class="field">
 
@@ -1788,6 +1797,23 @@ function salesPage(main){
   document.getElementById("saleForm").onsubmit=
   saveSale;
 
+  const recalcSale = () => {
+    const name=String(document.getElementById("saleProduct")?.value||"").trim().toLowerCase();
+    const qty=Number(document.getElementById("saleQty")?.value||0);
+    const product=cache.products.find(p=>String(p.name||"").trim().toLowerCase()===name);
+    const salePrice=Number(product?.sale_price||0);
+    const purchasePrice=Number(product?.purchase_price||0);
+    const amount=salePrice*qty;
+    const profit=(salePrice-purchasePrice)*qty;
+    if(product){
+      document.getElementById("saleAmt").value=amount.toFixed(2);
+      const h=document.getElementById("saleCalcHint");
+      if(h) h.textContent=`${money(salePrice)} sale price × ${qty} qty = ${money(amount)} | Profit = ${money(profit)}`;
+    }
+  };
+  document.getElementById("saleProduct").addEventListener("input",recalcSale);
+  document.getElementById("saleQty").addEventListener("input",recalcSale);
+
 }
 
 
@@ -1810,6 +1836,7 @@ async function saveSale(e){
   }
 
   const credit=amt-paid;
+  const status = credit<=0 ? "PAID" : (paid>0 ? "PARTIAL" : "CREDIT");
 
   const id=
   "S-"+Date.now();
@@ -1853,6 +1880,7 @@ async function saveSale(e){
     credit,
 
     payment_mode:salePayment.value,
+    status,
 
     file:fileUrl,
 
@@ -2042,6 +2070,21 @@ function purchasePage(main){
   document.getElementById("purchaseForm")
   .onsubmit=savePurchase;
 
+  const recalcPurchase = () => {
+    const name=String(document.getElementById("purchaseProduct")?.value||"").trim().toLowerCase();
+    const qty=Number(document.getElementById("purchaseQty")?.value||0);
+    const product=cache.products.find(p=>String(p.name||"").trim().toLowerCase()===name);
+    const purchasePrice=Number(product?.purchase_price||0);
+    const amount=purchasePrice*qty;
+    if(product){
+      document.getElementById("purchaseAmt").value=amount.toFixed(2);
+      const h=document.getElementById("purchaseCalcHint");
+      if(h) h.textContent=`${money(purchasePrice)} purchase price × ${qty} qty = ${money(amount)}`;
+    }
+  };
+  document.getElementById("purchaseProduct").addEventListener("input",recalcPurchase);
+  document.getElementById("purchaseQty").addEventListener("input",recalcPurchase);
+
 }
 
 
@@ -2096,6 +2139,7 @@ async function savePurchase(e){
     paid,
 
     credit:Math.max(0,amt-paid),
+    status:Math.max(0,amt-paid)<=0 ? "PAID" : (paid>0 ? "PARTIAL" : "CREDIT"),
 
     payment_mode:purchasePayment.value,
 
@@ -2363,7 +2407,12 @@ async function savePayment(e){
         Math.max(
           0,
           Number(bill.amt||0)-newPaid
-        )
+        ),
+
+        status:
+        Number(bill.amt||0)-newPaid<=0
+          ? "PAID"
+          : (newPaid>0 ? "PARTIAL" : "CREDIT")
 
       })
       .eq("id",bill.id);
@@ -3096,7 +3145,7 @@ function editBill(id){
           </select>
         </div>
 
-        ${input("Status","editBillStatus",bill.status||"")}
+        <div class="field"><label>Status</label><input id="editBillStatus" value="${esc(bill.status||"")}" readonly><div class="hint">Status is calculated automatically from Paid and Amount.</div></div>
         ${input("Notes","editBillNotes",bill.notes||"")}
 
         <div class="field two">
@@ -3177,7 +3226,7 @@ async function saveBillEdit(e,id){
     paid,
     credit:Math.max(0,amount-paid),
     payment_mode:document.getElementById("editBillMode").value,
-    status:document.getElementById("editBillStatus").value.trim(),
+    status: amount-paid<=0 ? "PAID" : (paid>0 ? "PARTIAL" : "CREDIT"),
     notes:document.getElementById("editBillNotes").value.trim(),
     file:fileUrl
   })
@@ -3290,21 +3339,19 @@ async function updateStock(name,change){
 
   if(!name)return;
 
-  const product=
-  cache.products.find(
-    x=>x.name.toLowerCase()===
-    name.toLowerCase()
-  );
+  const {data:product,error:findError}=await db
+    .from("products")
+    .select("id,stock,name")
+    .ilike("name",name)
+    .limit(1)
+    .maybeSingle();
 
-  if(!product)return;
+  if(findError || !product) return;
 
   await db
-  .from("products")
-  .update({
-    stock:
-    Number(product.stock||0)+change
-  })
-  .eq("id",product.id);
+    .from("products")
+    .update({stock:Number(product.stock||0)+change})
+    .eq("id",product.id);
 
 }
 
@@ -3442,7 +3489,7 @@ function ledgerRow(x){
     <td>${money(x.amt)}</td>
     <td>${money(x.paid||0)}</td>
     <td>${money(credit)}</td>
-    <td><span class="pill ${credit>0?"red":"green"}">${esc(x.status || (credit>0 ? "DUE" : "PAID"))}</span></td>
+    <td><span class="pill ${credit<=0?"green":"red"}">${credit<=0 ? "PAID" : (Number(x.paid||0)>0 ? "PARTIAL" : "CREDIT")}</span></td>
     <td>${x.file ? `<button class="btn alt" type="button" onclick="downloadBill('${esc(x.file)}')">Download PDF</button>` : "-"}</td>
     <td><button class="btn alt" type="button" onclick="editBill('${esc(x.id)}')">Edit</button></td>
   </tr>
