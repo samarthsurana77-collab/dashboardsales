@@ -111,7 +111,7 @@
     <button data-tab="bills" class="active" onclick="showTab('bills')">Enter Bill</button>
     <button data-tab="ledger" onclick="showTab('ledger')">Bill Ledger</button>
     <button data-tab="buyers" onclick="showTab('buyers')">Buyers &amp; Demand</button>
-    <button data-tab="calls" onclick="showTab('calls')">Call List</button>
+    <button data-tab="calls" class="admin-only" onclick="showTab('calls')">Call List</button>
     <button data-tab="dash" class="admin-only" onclick="showTab('dash')">Profit Dashboard</button>
   </nav>
 
@@ -237,6 +237,7 @@ function enterApp(){
   $('roleBadge').textContent = ROLE.toUpperCase();
   $('whoami').textContent = ROLE==='admin' ? 'Admin' : 'Staff';
   document.querySelectorAll('.admin-only').forEach(e=> e.style.display = ROLE==='admin' ? '' : 'none');
+  if(ROLE!=='admin') showTab('bills');   // staff always start on Enter Bill, never an admin pane
   $('b_date').value = today();
   renderAll();
 }
