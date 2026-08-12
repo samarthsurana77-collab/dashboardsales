@@ -4,257 +4,2706 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Chocolate Trade Desk</title>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
-:root{--brown:#3f2416;--brown2:#5a321f;--cream:#f7f0e5;--card:#fffaf3;--line:#e7d7c3;--gold:#c98a2e;--muted:#7b6859;--green:#28694d;--red:#a33b2b}
-*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--cream);color:#302118}button,input,select,textarea{font:inherit}button{cursor:pointer}
-.login{min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 50% 35%,#6b3d25,#321b10 65%);padding:20px}
-.login-card{width:min(430px,94vw);background:#fffaf5;border-radius:22px;padding:38px;box-shadow:0 25px 80px #0005}.logo{font-family:Georgia,serif;font-size:28px;font-weight:700}.sub{color:var(--muted);margin:7px 0 25px}.field{margin:12px 0}.field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px}.field input,.field select,.field textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:9px;background:#fff}.btn{border:0;border-radius:9px;padding:11px 16px;background:var(--brown);color:#fff;font-weight:700}.btn.alt{background:#efe1d0;color:var(--brown)}.btn.gold{background:var(--gold)}.error{color:var(--red);font-size:13px;margin-top:10px}.hint{font-size:12px;color:var(--muted);line-height:1.5}
-.app{min-height:100vh}.top{height:62px;background:var(--brown);color:#fff;display:flex;align-items:center;padding:0 22px;gap:15px}.brand{font:700 21px Georgia,serif}.role{background:#d79637;color:#392012;border-radius:20px;padding:4px 10px;font-size:11px;font-weight:800}.top-right{margin-left:auto;display:flex;align-items:center;gap:12px}.top button{background:transparent;border:1px solid #ffffff55;color:#fff;border-radius:8px;padding:7px 11px}.nav{display:flex;background:#fffaf5;border-bottom:1px solid var(--line);padding:0 18px;gap:5px;overflow:auto}.nav button{border:0;background:none;padding:14px 15px;color:var(--muted);white-space:nowrap}.nav button.active{color:var(--brown);font-weight:800;border-bottom:3px solid var(--gold)}
-main{max-width:1320px;margin:auto;padding:24px}.page-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}.page-title h2{margin:0;font-family:Georgia,serif}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.card{background:var(--card);border:1px solid var(--line);border-radius:15px;padding:18px;box-shadow:0 8px 25px #5a321f0a}.metric .label{font-size:12px;color:var(--muted)}.metric .value{font-size:25px;font-weight:800;margin-top:7px}.section{margin-top:18px}.section h3{font-family:Georgia,serif;margin:0 0 12px}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background:#fffaf5}table{width:100%;border-collapse:collapse;min-width:720px}th,td{text-align:left;padding:11px 12px;border-bottom:1px solid #eee1d2;font-size:13px}th{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;background:#fbf2e7}tr:last-child td{border-bottom:0}.pill{display:inline-block;padding:4px 8px;border-radius:20px;background:#efe1d0;font-size:11px;font-weight:700}.pill.green{background:#dff0e5;color:var(--green)}.pill.red{background:#f5ded8;color:var(--red)}.formgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.form-actions{display:flex;gap:8px;margin-top:15px}.two{grid-column:span 2}.notice{padding:11px 13px;background:#fff3d9;border:1px solid #eed7a8;border-radius:10px;font-size:13px;margin-bottom:15px}.hidden{display:none!important}.actions{display:flex;gap:7px;flex-wrap:wrap}.search{max-width:280px}.toast{position:fixed;right:20px;bottom:20px;background:#302118;color:white;padding:12px 16px;border-radius:10px;box-shadow:0 10px 30px #0004;z-index:20}.empty{text-align:center;color:var(--muted);padding:28px}
-@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.grid3,.formgrid{grid-template-columns:1fr}.two{grid-column:auto}}@media(max-width:600px){main{padding:15px}.grid{grid-template-columns:1fr}.top{padding:0 12px}.brand{font-size:17px}}
+:root{
+  --brown:#3f2416;
+  --brown2:#5a321f;
+  --cream:#f7f0e5;
+  --card:#fffaf3;
+  --line:#e7d7c3;
+  --gold:#c98a2e;
+  --muted:#7b6859;
+  --green:#28694d;
+  --red:#a33b2b;
+  --blue:#315d8c;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  font-family:Inter,Arial,sans-serif;
+  background:var(--cream);
+  color:#302118
+}
+
+button,input,select,textarea{font:inherit}
+
+button{cursor:pointer}
+
+.login{
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  background:radial-gradient(circle at 50% 35%,#6b3d25,#321b10 65%);
+  padding:20px
+}
+
+.login-card{
+  width:min(430px,94vw);
+  background:#fffaf5;
+  border-radius:22px;
+  padding:38px;
+  box-shadow:0 25px 80px #0005
+}
+
+.logo{
+  font-family:Georgia,serif;
+  font-size:28px;
+  font-weight:700
+}
+
+.sub{
+  color:var(--muted);
+  margin:7px 0 25px
+}
+
+.field{margin:12px 0}
+
+.field label{
+  display:block;
+  font-size:12px;
+  font-weight:700;
+  color:var(--muted);
+  margin-bottom:6px
+}
+
+.field input,
+.field select,
+.field textarea{
+  width:100%;
+  padding:11px;
+  border:1px solid var(--line);
+  border-radius:9px;
+  background:#fff
+}
+
+.field textarea{
+  min-height:80px;
+  resize:vertical
+}
+
+.btn{
+  border:0;
+  border-radius:9px;
+  padding:11px 16px;
+  background:var(--brown);
+  color:#fff;
+  font-weight:700
+}
+
+.btn.alt{
+  background:#efe1d0;
+  color:var(--brown)
+}
+
+.btn.gold{background:var(--gold)}
+
+.btn.green{background:var(--green)}
+
+.btn.red{background:var(--red)}
+
+.error{
+  color:var(--red);
+  font-size:13px;
+  margin-top:10px
+}
+
+.hint{
+  font-size:12px;
+  color:var(--muted);
+  line-height:1.5
+}
+
+.app{min-height:100vh}
+
+.top{
+  min-height:62px;
+  background:var(--brown);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  padding:0 22px;
+  gap:15px
+}
+
+.brand{
+  font:700 21px Georgia,serif
+}
+
+.role{
+  background:#d79637;
+  color:#392012;
+  border-radius:20px;
+  padding:4px 10px;
+  font-size:11px;
+  font-weight:800
+}
+
+.top-right{
+  margin-left:auto;
+  display:flex;
+  align-items:center;
+  gap:12px
+}
+
+.top button{
+  background:transparent;
+  border:1px solid #ffffff55;
+  color:#fff;
+  border-radius:8px;
+  padding:7px 11px
+}
+
+.nav{
+  display:flex;
+  background:#fffaf5;
+  border-bottom:1px solid var(--line);
+  padding:0 18px;
+  gap:5px;
+  overflow:auto
+}
+
+.nav button{
+  border:0;
+  background:none;
+  padding:14px 15px;
+  color:var(--muted);
+  white-space:nowrap
+}
+
+.nav button.active{
+  color:var(--brown);
+  font-weight:800;
+  border-bottom:3px solid var(--gold)
+}
+
+main{
+  max-width:1400px;
+  margin:auto;
+  padding:24px
+}
+
+.page-title{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:18px;
+  gap:10px
+}
+
+.page-title h2{
+  margin:0;
+  font-family:Georgia,serif
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:14px
+}
+
+.grid3{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:14px
+}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:15px;
+  padding:18px;
+  box-shadow:0 8px 25px #5a321f0a
+}
+
+.metric .label{
+  font-size:12px;
+  color:var(--muted)
+}
+
+.metric .value{
+  font-size:25px;
+  font-weight:800;
+  margin-top:7px
+}
+
+.metric .small{
+  font-size:11px;
+  color:var(--muted);
+  margin-top:5px
+}
+
+.section{margin-top:18px}
+
+.section h3{
+  font-family:Georgia,serif;
+  margin:0 0 12px
+}
+
+.table-wrap{
+  overflow:auto;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#fffaf5
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  min-width:850px
+}
+
+th,td{
+  text-align:left;
+  padding:11px 12px;
+  border-bottom:1px solid #eee1d2;
+  font-size:13px
+}
+
+th{
+  color:var(--muted);
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  background:#fbf2e7
+}
+
+tr:last-child td{border-bottom:0}
+
+.pill{
+  display:inline-block;
+  padding:4px 8px;
+  border-radius:20px;
+  background:#efe1d0;
+  font-size:11px;
+  font-weight:700
+}
+
+.pill.green{
+  background:#dff0e5;
+  color:var(--green)
+}
+
+.pill.red{
+  background:#f5ded8;
+  color:var(--red)
+}
+
+.pill.blue{
+  background:#dce8f5;
+  color:var(--blue)
+}
+
+.formgrid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px
+}
+
+.form-actions{
+  display:flex;
+  gap:8px;
+  margin-top:15px;
+  flex-wrap:wrap
+}
+
+.two{grid-column:span 2}
+
+.notice{
+  padding:11px 13px;
+  background:#fff3d9;
+  border:1px solid #eed7a8;
+  border-radius:10px;
+  font-size:13px;
+  margin-bottom:15px
+}
+
+.actions{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap
+}
+
+.search{
+  max-width:280px
+}
+
+.toast{
+  position:fixed;
+  right:20px;
+  bottom:20px;
+  background:#302118;
+  color:white;
+  padding:12px 16px;
+  border-radius:10px;
+  box-shadow:0 10px 30px #0004;
+  z-index:20
+}
+
+.empty{
+  text-align:center;
+  color:var(--muted);
+  padding:28px
+}
+
+.filebox{
+  border:2px dashed var(--line);
+  padding:16px;
+  border-radius:10px;
+  background:#fff
+}
+
+@media(max-width:900px){
+  .grid{grid-template-columns:repeat(2,1fr)}
+  .grid3,.formgrid{grid-template-columns:1fr}
+  .two{grid-column:auto}
+}
+
+@media(max-width:600px){
+  main{padding:15px}
+  .grid{grid-template-columns:1fr}
+  .top{padding:0 12px}
+  .brand{font-size:17px}
+}
 </style>
 </head>
+
 <body>
+
 <div id="root"></div>
+
 <script>
-const SUPABASE_URL="https://snlaqqyktcmpyxfpffhd.supabase.co";
-const SUPABASE_KEY="sb_publishable_H50UBB_HhklGYqi2dHIAwg_USTUM6BC";
+
+const SUPABASE_URL =
+"https://snlaqqyktcmpyxfpffhd.supabase.co";
+
+const SUPABASE_KEY =
+"sb_publishable_H50UBB_HhklGYqi2dHIAwg_USTUM6BC";
+
 const {createClient}=supabase;
-const db=createClient(SUPABASE_URL,SUPABASE_KEY);
-let user=null, profile=null, active="dashboard", cache={parties:[],products:[],sales:[],purchases:[]};
+
+const db=createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+let user=null;
+let profile=null;
+let active="dashboard";
+
+let cache={
+  buyers:[],
+  products:[],
+  bills:[],
+  payments:[],
+  expenses:[]
+};
 
 const root=document.getElementById("root");
-const money=n=>"₹"+Number(n||0).toLocaleString("en-IN",{maximumFractionDigits:2});
-const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
-const toast=(m)=>{let x=document.createElement("div");x.className="toast";x.textContent=m;document.body.appendChild(x);setTimeout(()=>x.remove(),2800)};
+
 const today=()=>new Date().toISOString().slice(0,10);
 
+const money=n =>
+"₹"+Number(n||0).toLocaleString(
+"en-IN",
+{maximumFractionDigits:2}
+);
+
+const esc=s =>
+String(s??"").replace(
+/[&<>"']/g,
+m=>({
+"&":"&amp;",
+"<":"&lt;",
+">":"&gt;",
+'"':"&quot;",
+"'":"&#39;"
+}[m])
+);
+
+function toast(message){
+
+  const x=document.createElement("div");
+
+  x.className="toast";
+
+  x.textContent=message;
+
+  document.body.appendChild(x);
+
+  setTimeout(()=>x.remove(),2800);
+}
+
+
+/* =====================================================
+   LOGIN
+===================================================== */
+
 async function boot(){
- const {data}=await db.auth.getSession();
- if(data.session){user=data.session.user; await loadProfile();} else showLogin();
- db.auth.onAuthStateChange(async(_,s)=>{if(s){user=s.user;await loadProfile()}else{user=null;profile=null;showLogin()}});
-}
-async function loadProfile(){
- const {data,error}=await db.from("profiles").select("*").eq("id",user.id).single();
- if(error){showLogin("Profile not found. Contact admin.");return}
- profile=data;renderApp();await loadReferenceData();
-}
-function showLogin(msg=""){
- root.innerHTML=`<div class="login"><div class="login-card">
- <div class="logo">🍫 Chocolate Trade Desk</div><div class="sub">Internal trading & inventory portal</div>
- <form id="loginForm">
- <div class="field"><label>Email</label><input id="email" type="email" required placeholder="admin@chocolatetradedesk.com"></div>
- <div class="field"><label>Password</label><input id="password" type="password" required placeholder="Your password"></div>
- <button class="btn" style="width:100%">Sign in</button>
- </form>${msg?`<div class="error">${esc(msg)}</div>`:""}
- <p class="hint" style="margin-top:18px">Admin sees the full dashboard. Staff can enter bills, buyers, demand and payments.</p>
- </div></div>`;
- document.getElementById("loginForm").onsubmit=async e=>{e.preventDefault();const {error}=await db.auth.signInWithPassword({email:email.value,password:password.value});if(error)showLogin(error.message)};
-}
-function renderApp(){
- root.innerHTML=`<div class="app">
- <header class="top"><div class="brand">🍫 Chocolate Trade Desk</div><span class="role">${profile.role.toUpperCase()}</span><div class="top-right"><span>${esc(profile.name||profile.role)}</span><button id="logout">Log out</button></div></header>
- <nav class="nav" id="nav"></nav><main id="main"></main></div>`;
- document.getElementById("logout").onclick=()=>db.auth.signOut();
- renderNav();renderPage();
-}
-function renderNav(){
- let items=profile.role==="admin"?[
- ["dashboard","Dashboard"],["sales","Sales"],["purchases","Purchases"],["payments","Payments"],["parties","Parties"],["products","Products"],["stock","Stock"],["expenses","Expenses"],["calllist","Who to Call"],["ledger","Ledger"]
- ]:[
- ["sales","Enter Sale"],["purchases","Enter Purchase"],["payments","Payments"],["parties","Buyers & Demand"],["ledger","Bill Ledger"]
- ];
- document.getElementById("nav").innerHTML=items.map(([k,v])=>`<button class="${active===k?"active":""}" data-page="${k}">${v}</button>`).join("");
- document.querySelectorAll("[data-page]").forEach(b=>b.onclick=()=>{active=b.dataset.page;renderNav();renderPage()});
-}
-async function loadReferenceData(){
- const [p,pr,s,pu]=await Promise.all([
- db.from("parties").select("*").eq("active",true).order("name"),
- db.from("products").select("*").eq("active",true).order("name"),
- db.from("sales_invoices").select("*").order("invoice_date",{ascending:false}).limit(500),
- db.from("purchase_invoices").select("*").order("invoice_date",{ascending:false}).limit(500)
- ]);
- cache.parties=p.data||[];cache.products=pr.data||[];cache.sales=s.data||[];cache.purchases=pu.data||[];
-}
-async function refresh(){await loadReferenceData();renderPage()}
-function renderPage(){
- const m=document.getElementById("main"); if(!m)return;
- ({dashboard:pageDashboard,sales:pageSales,purchases:pagePurchases,payments:pagePayments,parties:pageParties,products:pageProducts,stock:pageStock,expenses:pageExpenses,calllist:pageCallList,ledger:pageLedger}[active]||pageDashboard)(m);
-}
-function pageDashboard(m){
- if(profile.role!=="admin"){active="sales";renderNav();return pageSales(m)}
- m.innerHTML=`<div class="page-title"><div><h2>Dashboard</h2><div class="sub">Today's trading position</div></div><button class="btn alt" onclick="refresh()">Refresh</button></div><div id="dash"></div>`;
- dashboardData();
-}
-async function dashboardData(){
- const d=today();
- const [[ss],[pp],[rc],[pm],[ex]]=await Promise.all([
-  db.from("sales_invoices").select("total_amount").eq("invoice_date",d),
-  db.from("purchase_invoices").select("total_amount").eq("invoice_date",d),
-  db.from("payments_received").select("amount").eq("payment_date",d),
-  db.from("payments_made").select("amount").eq("payment_date",d),
-  db.from("expenses").select("amount").eq("expense_date",d)
- ]);
- const sum=a=>a.reduce((x,r)=>x+Number(r.total_amount??r.amount??0),0);
- const sales=sum(ss),purchases=sum(pp),received=sum(rc),paid=sum(pm),expenses=sum(ex);
- const outstanding=await outstandingTotal();
- document.getElementById("dash").innerHTML=`<div class="grid">
- <div class="card metric"><div class="label">Today's Sales</div><div class="value">${money(sales)}</div></div>
- <div class="card metric"><div class="label">Today's Purchases</div><div class="value">${money(purchases)}</div></div>
- <div class="card metric"><div class="label">Cash Received</div><div class="value">${money(received)}</div></div>
- <div class="card metric"><div class="label">Cash Paid</div><div class="value">${money(paid)}</div></div>
- </div><div class="grid" style="margin-top:14px">
- <div class="card metric"><div class="label">Today's Expenses</div><div class="value">${money(expenses)}</div></div>
- <div class="card metric"><div class="label">Gross Trading Difference</div><div class="value">${money(sales-purchases)}</div></div>
- <div class="card metric"><div class="label">Customer Outstanding</div><div class="value">${money(outstanding)}</div></div>
- <div class="card metric"><div class="label">Net Cash Movement</div><div class="value">${money(received-paid-expenses)}</div></div>
- </div>
- <div class="section card"><h3>Recent Sales</h3>${invoiceTable(cache.sales.slice(0,8),"sale")}</div>`;
-}
-async function outstandingTotal(){
- const {data:s}=await db.from("sales_invoices").select("id,total_amount");
- const {data:p}=await db.from("payments_received").select("sales_invoice_id,amount");
- const paid={};(p||[]).forEach(x=>paid[x.sales_invoice_id]=(paid[x.sales_invoice_id]||0)+Number(x.amount);
- return (s||[]).reduce((a,x)=>a+Math.max(0,Number(x.total_amount)-Number(paid[x.id]||0)),0);
-}
-function invoiceTable(rows,type){
- if(!rows?.length)return `<div class="empty">No records yet.</div>`;
- return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Invoice</th><th>Party</th><th>Total</th><th>Status</th><th>PDF</th></tr></thead><tbody>${rows.map(x=>{
- const party=cache.parties.find(p=>p.id===x.party_id)?.name||"—";
- return `<tr><td>${esc(x.invoice_date)}</td><td>${esc(x.invoice_number)}</td><td>${esc(party)}</td><td>${money(x.total_amount)}</td><td><span class="pill">${esc(x.payment_status)}</span></td><td>${x.document_path?`<button class="btn alt" onclick="downloadBill('${esc(x.document_path)}')">Download</button>`:"—"}</td></tr>`}).join("")}</tbody></table></div>`;
-}
-function partyOptions(){return `<option value="">Select party</option>`+cache.parties.map(x=>`<option value="${x.id}">${esc(x.name)}${x.phone?" — "+esc(x.phone):""}</option>`).join("")}
-function productOptions(){return `<option value="">Select product</option>`+cache.products.map(x=>`<option value="${x.id}">${esc(x.name)}</option>`).join("")}
 
-function invoiceForm(m,type){
- const sale=type==="sale";
- m.innerHTML=`<div class="page-title"><div><h2>${sale?"Record Sale":"Record Purchase"}</h2><div class="sub">${sale?"Customer sale":"Supplier purchase"}</div></div></div>
- <div class="card"><form id="invoiceForm"><div class="formgrid">
- <div class="field"><label>Invoice No.</label><input id="invno" required placeholder="INV-102"></div>
- <div class="field"><label>Date</label><input id="invdate" type="date" value="${today()}" required></div>
- <div class="field"><label>${sale?"Buyer":"Supplier"}</label><select id="party" required>${partyOptions()}</select></div>
- <div class="field"><label>Product</label><select id="product" required>${productOptions()}</select></div>
- <div class="field"><label>Quantity (kg)</label><input id="qty" type="number" min="0" step="0.001" required></div>
- <div class="field"><label>Rate (₹/kg)</label><input id="rate" type="number" min="0" step="0.01" required></div>
- <div class="field"><label>Total Amount (₹)</label><input id="amount" type="number" min="0" step="0.01" readonly></div>
- <div class="field"><label>Paid Now (₹)</label><input id="paid" type="number" min="0" step="0.01" value="0"></div>
- <div class="field"><label>Payment Method</label><select id="method"><option>Cash</option><option>Bank</option><option>UPI</option><option>Cheque</option><option>Other</option></select></div>
- <div class="field two"><label>Bill PDF</label><input id="pdf" type="file" accept="application/pdf"></div>
- <div class="field two"><label>Notes</label><textarea id="notes" rows="2"></textarea></div>
- </div><div class="notice">Credit is calculated automatically: <b>Credit = Total − Paid Now</b>. Later payments are recorded separately.</div>
- <div class="form-actions"><button class="btn">Save ${sale?"Sale":"Purchase"}</button><button type="button" class="btn alt" onclick="resetForm()">Clear</button></div></form></div>
- <div class="section card"><h3>Recent ${sale?"Sales":"Purchases"}</h3>${invoiceTable(sale?cache.sales.slice(0,12):cache.purchases.slice(0,12),sale?"sale":"purchase")}</div>`;
- document.getElementById("qty").oninput=calc;document.getElementById("rate").oninput=calc;
- document.getElementById("paid").oninput=calcStatus;document.getElementById("amount").onchange=calcStatus;
- document.getElementById("invoiceForm").onsubmit=e=>saveInvoice(e,sale);
-}
-function calc(){amount.value=(Number(qty.value||0)*Number(rate.value||0)).toFixed(2);calcStatus()}
-function calcStatus(){const a=Number(amount.value||0),p=Number(paid.value||0);if(p>a)paid.value=a}
-function resetForm(){document.getElementById("invoiceForm").reset();invdate.value=today();amount.value="0"}
-async function uploadPDF(file,path){
- if(!file)return null;
- const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
- const final=`${path}/${Date.now()}_${safe}`;
- const {error}=await db.storage.from("bill-pdfs").upload(final,file,{contentType:"application/pdf"});
- if(error)throw error;return final;
-}
-async function saveInvoice(e,sale){
- e.preventDefault();
- const total=Number(amount.value||0),paidNow=Number(paid.value||0);
- if(total<=0)return toast("Enter quantity and rate.");
- if(paidNow>total)return toast("Paid amount cannot exceed total.");
- const status=paidNow===0?"credit":paidNow===total?"paid":"partial";
- const file=document.getElementById("pdf").files[0];
- try{
-  const path=file?await uploadPDF(file,sale?"sales":"purchases"):null;
-  const table=sale?"sales_invoices":"purchase_invoices";
-  const itemTable=sale?"sales_invoice_items":"purchase_invoice_items";
-  const {data:inv,error}=await db.from(table).insert({invoice_number:invno.value,party_id:party.value,invoice_date:invdate.value,total_amount:total,payment_status:status,notes:notes.value,document_path:path,created_by:user.id}).select().single();
-  if(error)throw error;
-  const {error:ie}=await db.from(itemTable).insert({invoice_id:inv.id,product_id:product.value,quantity:Number(qty.value),rate:Number(rate.value),amount:total});
-  if(ie)throw ie;
-  if(sale){
-   if(paidNow>0){const {error:x}=await db.from("payments_received").insert({party_id:party.value,sales_invoice_id:inv.id,amount:paidNow,payment_date:invdate.value,payment_method:method.value,created_by:user.id});if(x)throw x}
-   await db.from("stock_movements").insert({product_id:product.value,movement_type:"sale",quantity:-Number(qty.value),unit_cost:Number(rate.value),reference_id:inv.id,movement_date:invdate.value,created_by:user.id});
+  const {data}=await db.auth.getSession();
+
+  if(data.session){
+
+    user=data.session.user;
+
+    await loadProfile();
+
   }else{
-   if(paidNow>0){const {error:x}=await db.from("payments_made").insert({party_id:party.value,purchase_invoice_id:inv.id,amount:paidNow,payment_date:invdate.value,payment_method:method.value,created_by:user.id});if(x)throw x}
-   await db.from("stock_movements").insert({product_id:product.value,movement_type:"purchase",quantity:Number(qty.value),unit_cost:Number(rate.value),reference_id:inv.id,movement_date:invdate.value,created_by:user.id});
+
+    showLogin();
+
   }
-  toast("Saved successfully");await refresh();
- }catch(err){console.error(err);toast(err.message||"Could not save")}
-}
-function pageSales(m){invoiceForm(m,"sale")}
-function pagePurchases(m){invoiceForm(m,"purchase")}
 
-async function pagePayments(m){
- const {data:r}=await db.from("payments_received").select("*").order("payment_date",{ascending:false}).limit(200);
- const {data:p}=await db.from("payments_made").select("*").order("payment_date",{ascending:false}).limit(200);
- m.innerHTML=`<div class="page-title"><div><h2>Payments</h2><div class="sub">Record money received or paid later against credit.</div></div></div>
- <div class="grid3"><div class="card"><h3>Receive Customer Payment</h3><form id="recv">${paymentFields("received")}<button class="btn">Save Receipt</button></form></div>
- <div class="card"><h3>Pay Supplier</h3><form id="made">${paymentFields("made")}<button class="btn">Save Payment</button></form></div>
- <div class="card"><h3>How it works</h3><p class="hint">A ₹100,000 sale with ₹40,000 paid leaves ₹60,000 outstanding. Any later payment becomes a separate ledger transaction.</p></div></div>
- <div class="section card"><h3>Recent Customer Receipts</h3>${paymentTable(r||[],"received")}</div>
- <div class="section card"><h3>Recent Supplier Payments</h3>${paymentTable(p||[],"made")}</div>`;
- document.getElementById("recv").onsubmit=e=>savePayment(e,"received");document.getElementById("made").onsubmit=e=>savePayment(e,"made");
-}
-function paymentFields(kind){
- return `<div class="field"><label>Party</label><select id="${kind}party" required>${partyOptions()}</select></div>
- <div class="field"><label>Amount (₹)</label><input id="${kind}amount" type="number" min="0.01" step=".01" required></div>
- <div class="field"><label>Date</label><input id="${kind}date" type="date" value="${today()}" required></div>
- <div class="field"><label>Method</label><select id="${kind}method"><option>Cash</option><option>Bank</option><option>UPI</option><option>Cheque</option><option>Other</option></select></div>
- <div class="field"><label>Reference</label><input id="${kind}ref"></div>`;
-}
-async function savePayment(e,kind){
- e.preventDefault();const prefix=kind;
- const obj={party_id:document.getElementById(prefix+"party").value,amount:Number(document.getElementById(prefix+"amount").value),payment_date:document.getElementById(prefix+"date").value,payment_method:document.getElementById(prefix+"method").value,reference:document.getElementById(prefix+"ref").value,created_by:user.id};
- const {error}=await db.from(kind==="received"?"payments_received":"payments_made").insert(obj);if(error)toast(error.message);else{toast("Payment recorded");await pagePayments(document.getElementById("main"))}
-}
-function paymentTable(rows){if(!rows.length)return `<div class="empty">No payments yet.</div>`;return `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Party</th><th>Amount</th><th>Method</th><th>Reference</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${esc(x.payment_date)}</td><td>${esc(cache.parties.find(p=>p.id===x.party_id)?.name||"—")}</td><td>${money(x.amount)}</td><td>${esc(x.payment_method)}</td><td>${esc(x.reference||"")}</td></tr>`).join("")}</tbody></table></div>`}
+  db.auth.onAuthStateChange(
+    async(_,session)=>{
 
-function pageParties(m){
- m.innerHTML=`<div class="page-title"><div><h2>Buyers & Demand</h2><div class="sub">Customers, suppliers and reorder planning</div></div></div>
- <div class="grid3"><div class="card"><h3>Add Party</h3><form id="partyForm"><div class="field"><label>Name</label><input id="pname" required></div><div class="field"><label>Phone</label><input id="pphone"></div><div class="field"><label>Type</label><select id="ptype"><option value="customer">Customer</option><option value="supplier">Supplier</option><option value="both">Both</option></select></div><div class="field"><label>Credit Limit</label><input id="plimit" type="number" value="0"></div><button class="btn">Add Party</button></form></div>
- <div class="card two"><h3>Existing Parties</h3>${partyTable()}</div></div>
- <div class="section card"><h3>Set Monthly Demand</h3><form id="demandForm"><div class="formgrid"><div class="field"><label>Buyer</label><select id="dparty" required>${partyOptions()}</select></div><div class="field"><label>Product</label><select id="dproduct" required>${productOptions()}</select></div><div class="field"><label>Monthly Demand (kg)</label><input id="demand" type="number" step=".001" required></div><div class="field"><label>Reorder Cycle (days)</label><input id="cycle" type="number" value="30" required></div></div><button class="btn">Save Demand</button></form></div>`;
- document.getElementById("partyForm").onsubmit=async e=>{e.preventDefault();const {error}=await db.from("parties").insert({name:pname.value,phone:pphone.value,party_type:ptype.value,credit_limit:Number(plimit.value||0)});if(error)toast(error.message);else{toast("Party added");await refresh()}};
- document.getElementById("demandForm").onsubmit=async e=>{e.preventDefault();const {error}=await db.from("buyer_demand").upsert({party_id:dparty.value,product_id:dproduct.value,monthly_demand:Number(demand.value),reorder_cycle_days:Number(cycle.value)});if(error)toast(error.message);else toast("Demand saved")};
-}
-function partyTable(){if(!cache.parties.length)return `<div class="empty">No parties yet.</div>`;return `<div class="table-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th>Type</th><th>Credit Limit</th></tr></thead><tbody>${cache.parties.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.phone||"")}</td><td>${esc(p.party_type)}</td><td>${money(p.credit_limit)}</td></tr>`).join("")}</tbody></table></div>`}
+      if(session){
 
-function pageProducts(m){
- m.innerHTML=`<div class="page-title"><div><h2>Products</h2><div class="sub">Manage chocolate/chocolate ingredient SKUs</div></div></div><div class="grid3"><div class="card"><h3>Add Product</h3><form id="prodForm"><div class="field"><label>Name</label><input id="prname" required></div><div class="field"><label>SKU</label><input id="sku"></div><div class="field"><label>Unit</label><input id="unit" value="kg"></div><div class="field"><label>Minimum Stock (kg)</label><input id="minstock" type="number" value="0"></div><button class="btn">Add Product</button></form></div><div class="card two"><h3>Product List</h3>${cache.products.length?`<div class="table-wrap"><table><thead><tr><th>Name</th><th>SKU</th><th>Unit</th><th>Minimum Stock</th></tr></thead><tbody>${cache.products.map(p=>`<tr><td>${esc(p.name)}</td><td>${esc(p.sku||"")}</td><td>${esc(p.unit)}</td><td>${p.minimum_stock}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No products yet.</div>`}</div></div>`;
- document.getElementById("prodForm").onsubmit=async e=>{e.preventDefault();const {error}=await db.from("products").insert({name:prname.value,sku:sku.value,unit:unit.value,minimum_stock:Number(minstock.value||0)});if(error)toast(error.message);else{toast("Product added");await refresh()}};
+        user=session.user;
+
+        await loadProfile();
+
+      }else{
+
+        user=null;
+
+        profile=null;
+
+        showLogin();
+
+      }
+
+    }
+  );
 }
-async function pageStock(m){
- const {data:mov}=await db.from("stock_movements").select("*").order("movement_date",{ascending:false}).limit(500);
- const stock={};(mov||[]).forEach(x=>stock[x.product_id]=(stock[x.product_id]||0)+Number(x.quantity));
- m.innerHTML=`<div class="page-title"><div><h2>Stock</h2><div class="sub">Purchases add stock; sales reduce stock.</div></div><button class="btn alt" onclick="refresh()">Refresh</button></div><div class="grid">${cache.products.map(p=>{const q=stock[p.id]||0;const low=q<=Number(p.minimum_stock||0);return `<div class="card metric"><div class="label">${esc(p.name)}</div><div class="value">${q.toFixed(3)} ${esc(p.unit)}</div><span class="pill ${low?"red":"green"}">${low?"LOW STOCK":"OK"}</span></div>`}).join("")||`<div class="card empty">Add products first.</div>`}</div><div class="section card"><h3>Recent Stock Movements</h3>${(mov||[]).length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Product</th><th>Type</th><th>Quantity</th></tr></thead><tbody>${mov.slice(0,100).map(x=>`<tr><td>${x.movement_date}</td><td>${esc(cache.products.find(p=>p.id===x.product_id)?.name||"—")}</td><td>${esc(x.movement_type)}</td><td>${Number(x.quantity).toFixed(3)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No stock movements.</div>`}</div>`;
+
+
+async function loadProfile(){
+
+  const {data,error}=await db
+  .from("profiles")
+  .select("*")
+  .eq("id",user.id)
+  .single();
+
+  if(error){
+
+    showLogin(
+      "Profile not found. Please ask admin to create your profile."
+    );
+
+    return;
+  }
+
+  profile=data;
+
+  renderApp();
+
+  await loadAll();
+
 }
-async function pageExpenses(m){
- const {data:r}=await db.from("expenses").select("*").order("expense_date",{ascending:false}).limit(200);
- m.innerHTML=`<div class="page-title"><div><h2>Expenses</h2><div class="sub">Operating and other cash outflows</div></div></div><div class="grid3"><div class="card"><h3>Add Expense</h3><form id="expForm"><div class="field"><label>Date</label><input id="edate" type="date" value="${today()}"></div><div class="field"><label>Category</label><input id="ecat" placeholder="Transport, salary..." required></div><div class="field"><label>Description</label><input id="edesc"></div><div class="field"><label>Amount</label><input id="eamt" type="number" min=".01" step=".01" required></div><div class="field"><label>Method</label><select id="emethod"><option>Cash</option><option>Bank</option><option>UPI</option><option>Cheque</option><option>Other</option></select></div><button class="btn">Save Expense</button></form></div><div class="card two"><h3>Expense Ledger</h3>${r?.length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Method</th></tr></thead><tbody>${r.map(x=>`<tr><td>${x.expense_date}</td><td>${esc(x.category)}</td><td>${esc(x.description||"")}</td><td>${money(x.amount)}</td><td>${esc(x.payment_method)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No expenses.</div>`}</div></div>`;
- document.getElementById("expForm").onsubmit=async e=>{e.preventDefault();const {error}=await db.from("expenses").insert({expense_date:edate.value,category:ecat.value,description:edesc.value,amount:Number(eamt.value),payment_method:emethod.value,created_by:user.id});if(error)toast(error.message);else{toast("Expense saved");pageExpenses(m)}};
+
+
+function showLogin(msg=""){
+
+  root.innerHTML=`
+
+  <div class="login">
+
+    <div class="login-card">
+
+      <div class="logo">
+        🍫 Chocolate Trade Desk
+      </div>
+
+      <div class="sub">
+        Internal trading & inventory portal
+      </div>
+
+      <form id="loginForm">
+
+        <div class="field">
+
+          <label>Email</label>
+
+          <input
+            id="email"
+            type="email"
+            required
+            placeholder="admin@chocolatetradedesk.com"
+          >
+
+        </div>
+
+        <div class="field">
+
+          <label>Password</label>
+
+          <input
+            id="password"
+            type="password"
+            required
+            placeholder="Your password"
+          >
+
+        </div>
+
+        <button
+          class="btn"
+          style="width:100%"
+        >
+          Sign in
+        </button>
+
+      </form>
+
+      ${
+        msg
+        ?
+        `<div class="error">${esc(msg)}</div>`
+        :
+        ""
+      }
+
+      <p class="hint" style="margin-top:18px">
+
+        Admin sees the full dashboard.
+        Staff can enter sales, purchases,
+        buyers, payments and bills.
+
+      </p>
+
+    </div>
+
+  </div>
+
+  `;
+
+  document.getElementById("loginForm").onsubmit=
+  async e=>{
+
+    e.preventDefault();
+
+    const {error}=await db.auth.signInWithPassword({
+
+      email:
+      document.getElementById("email").value,
+
+      password:
+      document.getElementById("password").value
+
+    });
+
+    if(error){
+
+      showLogin(error.message);
+
+    }
+
+  };
+
 }
-async function pageCallList(m){
- const {data:ds}=await db.from("buyer_demand").select("*");
- const {data:sitems}=await db.from("sales_invoice_items").select("product_id,quantity,invoice_id");
- const {data:sales}=await db.from("sales_invoices").select("id,party_id,invoice_date");
- const last={};(sales||[]).forEach(s=>{if(!last[s.party_id]||s.invoice_date>last[s.party_id])last[s.party_id]=s.invoice_date});
- const calls=(ds||[]).map(d=>{const party=cache.parties.find(p=>p.id===d.party_id),prod=cache.products.find(p=>p.id===d.product_id),ld=last[d.party_id];const cycle=Number(d.reorder_cycle_days||30);const days=ld?Math.floor((Date.now()-new Date(ld).getTime())/86400000):9999;return {...d,party,prod,ld,days,due:days>=cycle}}).filter(x=>x.due).sort((a,b)=>b.days-a.days);
- m.innerHTML=`<div class="page-title"><div><h2>Who to Call</h2><div class="sub">Buyers whose reorder cycle appears due based on recorded sales.</div></div></div><div class="notice">This is a planning signal, not a prediction of exact inventory at the buyer. Keep the buyer's monthly demand and reorder cycle updated.</div><div class="card">${calls.length?`<div class="table-wrap"><table><thead><tr><th>Buyer</th><th>Phone</th><th>Product</th><th>Monthly Demand</th><th>Last Sale</th><th>Days Since</th><th>Action</th></tr></thead><tbody>${calls.map(x=>`<tr><td>${esc(x.party?.name||"—")}</td><td>${esc(x.party?.phone||"—")}</td><td>${esc(x.prod?.name||"—")}</td><td>${x.monthly_demand} kg</td><td>${esc(x.ld||"Never")}</td><td>${x.days}</td><td><span class="pill red">CALL</span></td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No buyers are currently due for a call.</div>`}</div>`;
+
+
+/* =====================================================
+   APP
+===================================================== */
+
+function renderApp(){
+
+  root.innerHTML=`
+
+  <div class="app">
+
+    <header class="top">
+
+      <div class="brand">
+        🍫 Chocolate Trade Desk
+      </div>
+
+      <span class="role">
+        ${profile.role.toUpperCase()}
+      </span>
+
+      <div class="top-right">
+
+        <span>
+          ${esc(profile.name||profile.role)}
+        </span>
+
+        <button id="logout">
+          Log out
+        </button>
+
+      </div>
+
+    </header>
+
+    <nav class="nav" id="nav"></nav>
+
+    <main id="main"></main>
+
+  </div>
+
+  `;
+
+  document.getElementById("logout").onclick=
+  ()=>db.auth.signOut();
+
+  renderNav();
+
+  renderPage();
+
 }
-async function pageLedger(m){
- const [s,p,r,pm]=await Promise.all([db.from("sales_invoices").select("*").order("invoice_date",{ascending:false}).limit(300),db.from("purchase_invoices").select("*").order("invoice_date",{ascending:false}).limit(300),db.from("payments_received").select("*").order("payment_date",{ascending:false}).limit(300),db.from("payments_made").select("*").order("payment_date",{ascending:false}).limit(300)]);
- const rows=[...(s.data||[]).map(x=>({date:x.invoice_date,type:"SALE",party:cache.parties.find(p=>p.id===x.party_id)?.name,total:x.total_amount,ref:x.invoice_number})),...(p.data||[]).map(x=>({date:x.invoice_date,type:"PURCHASE",party:cache.parties.find(p=>p.id===x.party_id)?.name,total:x.total_amount,ref:x.invoice_number})),...(r.data||[]).map(x=>({date:x.payment_date,type:"RECEIPT",party:cache.parties.find(p=>p.id===x.party_id)?.name,total:x.amount,ref:x.reference||"Payment"})),...(pm.data||[]).map(x=>({date:x.payment_date,type:"PAYMENT",party:cache.parties.find(p=>p.id===x.party_id)?.name,total:x.amount,ref:x.reference||"Payment"}))].sort((a,b)=>String(b.date).localeCompare(String(a.date)));
- m.innerHTML=`<div class="page-title"><div><h2>Bill Ledger</h2><div class="sub">Combined sales, purchases and money movements</div></div></div><div class="card">${rows.length?`<div class="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Party</th><th>Reference</th><th>Amount</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.date}</td><td><span class="pill">${x.type}</span></td><td>${esc(x.party||"—")}</td><td>${esc(x.ref)}</td><td>${money(x.total)}</td></tr>`).join("")}</tbody></table></div>`:`<div class="empty">No transactions.</div>`}</div>`;
+
+
+function renderNav(){
+
+  let items;
+
+  if(profile.role==="admin"){
+
+    items=[
+      ["dashboard","Dashboard"],
+      ["sales","Sales"],
+      ["purchases","Purchases"],
+      ["payments","Payments"],
+      ["parties","Parties"],
+      ["products","Products"],
+      ["stock","Stock"],
+      ["expenses","Expenses"],
+      ["ledger","Ledger"]
+    ];
+
+  }else{
+
+    items=[
+      ["dashboard","Dashboard"],
+      ["sales","Enter Sale"],
+      ["purchases","Enter Purchase"],
+      ["payments","Payments"],
+      ["parties","Buyers & Demand"],
+      ["ledger","Bill Ledger"]
+    ];
+
+  }
+
+  document.getElementById("nav").innerHTML=
+  items.map(([id,label])=>`
+
+    <button
+      class="${active===id?"active":""}"
+      onclick="go('${id}')"
+    >
+      ${label}
+    </button>
+
+  `).join("");
+
 }
+
+
+function go(page){
+
+  active=page;
+
+  renderNav();
+
+  renderPage();
+
+}
+
+
+function renderPage(){
+
+  const main=document.getElementById("main");
+
+  if(active==="dashboard")
+    return dashboardPage(main);
+
+  if(active==="sales")
+    return salesPage(main);
+
+  if(active==="purchases")
+    return purchasePage(main);
+
+  if(active==="payments")
+    return paymentsPage(main);
+
+  if(active==="parties")
+    return partiesPage(main);
+
+  if(active==="products")
+    return productsPage(main);
+
+  if(active==="stock")
+    return stockPage(main);
+
+  if(active==="expenses")
+    return expensesPage(main);
+
+  if(active==="ledger")
+    return ledgerPage(main);
+
+}
+
+
+/* =====================================================
+   LOAD DATA
+===================================================== */
+
+async function loadAll(){
+
+  const [
+    buyers,
+    products,
+    bills,
+    payments,
+    expenses
+  ]=await Promise.all([
+
+    db.from("buyers")
+      .select("*")
+      .order("created_at",{ascending:false}),
+
+    db.from("products")
+      .select("*")
+      .order("name"),
+
+    db.from("bills")
+      .select("*")
+      .order("date",{ascending:false}),
+
+    db.from("payments")
+      .select("*")
+      .order("date",{ascending:false}),
+
+    db.from("expenses")
+      .select("*")
+      .order("date",{ascending:false})
+
+  ]);
+
+  cache.buyers=buyers.data||[];
+  cache.products=products.data||[];
+  cache.bills=bills.data||[];
+  cache.payments=payments.data||[];
+  cache.expenses=expenses.data||[];
+
+  renderPage();
+
+}
+
+
+/* =====================================================
+   DASHBOARD
+===================================================== */
+
+function dashboardPage(main){
+
+  const salesToday=
+    cache.bills
+    .filter(x=>x.type==="sale" && x.date===today())
+    .reduce((a,x)=>a+Number(x.amt||0),0);
+
+  const purchasesToday=
+    cache.bills
+    .filter(x=>x.type==="purchase" && x.date===today())
+    .reduce((a,x)=>a+Number(x.amt||0),0);
+
+  const paymentsToday=
+    cache.payments
+    .filter(x=>x.date===today())
+    .reduce((a,x)=>a+Number(x.amount||0),0);
+
+  const outstanding=
+    cache.bills
+    .filter(x=>x.type==="sale")
+    .reduce(
+      (a,x)=>a+
+      Math.max(
+        0,
+        Number(x.amt||0)-Number(x.paid||0)
+      ),
+      0
+    );
+
+  const stockValue=
+    cache.products.reduce(
+      (a,x)=>
+      a+
+      Number(x.stock||0)*
+      Number(x.purchase_price||0),
+      0
+    );
+
+  main.innerHTML=`
+
+  <div class="page-title">
+
+    <div>
+
+      <h2>Dashboard</h2>
+
+      <div class="hint">
+        ${today()}
+      </div>
+
+    </div>
+
+    <button
+      class="btn"
+      onclick="loadAll();toast('Dashboard refreshed')"
+    >
+      Refresh
+    </button>
+
+  </div>
+
+  <div class="grid">
+
+    ${metric("Today's Sales",money(salesToday),"Sales entered today")}
+
+    ${metric("Today's Purchases",money(purchasesToday),"Purchases entered today")}
+
+    ${metric("Payments Today",money(paymentsToday),"Money received / paid")}
+
+    ${metric("Outstanding",money(outstanding),"Customer credit")}
+
+  </div>
+
+  <div class="grid" style="margin-top:14px">
+
+    ${metric("Stock Value",money(stockValue),"Purchase value")}
+
+    ${metric("Products",cache.products.length,"Products in inventory")}
+
+    ${metric("Customers",cache.buyers.length,"Buyers / parties")}
+
+    ${metric("Bills",cache.bills.length,"Total bills")}
+
+  </div>
+
+  <div class="section">
+
+    <h3>Today's Activity</h3>
+
+    <div class="card">
+
+      ${
+        cache.bills.filter(x=>x.date===today()).length===0
+        ?
+        `<div class="empty">No activity today yet.</div>`
+        :
+        `<div class="table-wrap">
+
+        <table>
+
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Party</th>
+          <th>Product</th>
+          <th>Amount</th>
+          <th>Payment</th>
+        </tr>
+
+        ${
+          cache.bills
+          .filter(x=>x.date===today())
+          .slice(0,15)
+          .map(billRow)
+          .join("")
+        }
+
+        </table>
+
+        </div>`
+      }
+
+    </div>
+
+  </div>
+
+  `;
+
+}
+
+
+function metric(label,value,small){
+
+  return `
+
+  <div class="card metric">
+
+    <div class="label">${label}</div>
+
+    <div class="value">${value}</div>
+
+    <div class="small">${small}</div>
+
+  </div>
+
+  `;
+
+}
+
+
+/* =====================================================
+   SALES
+===================================================== */
+
+function salesPage(main){
+
+  main.innerHTML=`
+
+  <div class="page-title">
+
+    <h2>Sales</h2>
+
+    <button
+      class="btn alt"
+      onclick="loadAll()"
+    >
+      Refresh
+    </button>
+
+  </div>
+
+  <div class="card">
+
+    <div class="notice">
+      A sale can be <b>Cash</b>, <b>Credit</b> or
+      <b>Partial Credit</b>. Later payments can be
+      recorded from the Payments section.
+    </div>
+
+    <form id="saleForm">
+
+      <div class="formgrid">
+
+        ${input("Sale Bill No","saleNo","SALE-"+Date.now())}
+
+        ${input("Date","saleDate",today(),"date")}
+
+        <div class="field">
+
+          <label>Customer</label>
+
+          <input
+            id="saleParty"
+            required
+            list="buyerList"
+            placeholder="Customer name"
+          >
+
+          <datalist id="buyerList">
+            ${
+              cache.buyers.map(
+                x=>`<option value="${esc(x.name)}">`
+              ).join("")
+            }
+          </datalist>
+
+        </div>
+
+        <div class="field">
+
+          <label>Product</label>
+
+          <input
+            id="saleProduct"
+            required
+            list="productList"
+            placeholder="Product"
+          >
+
+          <datalist id="productList">
+            ${
+              cache.products.map(
+                x=>`<option value="${esc(x.name)}">`
+              ).join("")
+            }
+          </datalist>
+
+        </div>
+
+        ${input("Quantity","saleQty","0","number")}
+
+        ${input("Total Amount","saleAmt","0","number")}
+
+        <div class="field">
+
+          <label>Payment Type</label>
+
+          <select id="salePayment">
+
+            <option value="cash">
+              Cash / Fully Paid
+            </option>
+
+            <option value="credit">
+              Full Credit
+            </option>
+
+            <option value="partial">
+              Partial Credit
+            </option>
+
+          </select>
+
+        </div>
+
+        ${input("Paid Now","salePaid","0","number")}
+
+        <div class="field two">
+
+          <label>Notes</label>
+
+          <textarea id="saleNotes"></textarea>
+
+        </div>
+
+        <div class="field two">
+
+          <label>Bill PDF</label>
+
+          <div class="filebox">
+
+            <input
+              id="saleFile"
+              type="file"
+              accept="application/pdf,.pdf"
+            >
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="form-actions">
+
+        <button class="btn">
+          Save Sale
+        </button>
+
+        <button
+          type="button"
+          class="btn alt"
+          onclick="go('ledger')"
+        >
+          View Ledger
+        </button>
+
+      </div>
+
+    </form>
+
+  </div>
+
+  <div class="section">
+
+    <h3>Recent Sales</h3>
+
+    <div class="table-wrap">
+
+      <table>
+
+      <tr>
+        <th>Date</th>
+        <th>Bill</th>
+        <th>Customer</th>
+        <th>Product</th>
+        <th>Amount</th>
+        <th>Paid</th>
+        <th>Credit</th>
+        <th>Bill</th>
+      </tr>
+
+      ${
+        cache.bills
+        .filter(x=>x.type==="sale")
+        .slice(0,30)
+        .map(saleTableRow)
+        .join("")
+      }
+
+      </table>
+
+    </div>
+
+  </div>
+
+  `;
+
+  document.getElementById("saleForm").onsubmit=
+  saveSale;
+
+}
+
+
+async function saveSale(e){
+
+  e.preventDefault();
+
+  const amt=Number(saleAmt.value||0);
+
+  let paid=Number(salePaid.value||0);
+
+  if(salePayment.value==="cash")
+    paid=amt;
+
+  if(paid>amt){
+
+    toast("Paid amount cannot exceed total");
+
+    return;
+  }
+
+  const credit=amt-paid;
+
+  const id=
+  "S-"+Date.now();
+
+  let fileUrl="";
+
+  const file=
+  document.getElementById("saleFile").files[0];
+
+  if(file){
+
+    fileUrl=
+    await uploadBill(file,id);
+
+    if(!fileUrl)return;
+
+  }
+
+  const {error}=await db
+  .from("bills")
+  .insert({
+
+    id,
+
+    type:"sale",
+
+    no:saleNo.value,
+
+    date:saleDate.value,
+
+    party:saleParty.value,
+
+    prod:saleProduct.value,
+
+    qty:Number(saleQty.value||0),
+
+    amt,
+
+    paid,
+
+    credit,
+
+    payment_mode:salePayment.value,
+
+    file:fileUrl,
+
+    notes:saleNotes.value,
+
+    created_by:user.id
+
+  });
+
+  if(error){
+
+    toast(error.message);
+
+    return;
+
+  }
+
+  await updateStock(
+    saleProduct.value,
+    -Number(saleQty.value||0)
+  );
+
+  toast("Sale saved successfully");
+
+  await loadAll();
+
+}
+
+
+/* =====================================================
+   PURCHASES
+===================================================== */
+
+function purchasePage(main){
+
+  main.innerHTML=`
+
+  <div class="page-title">
+    <h2>Purchases</h2>
+  </div>
+
+  <div class="card">
+
+    <form id="purchaseForm">
+
+      <div class="formgrid">
+
+        ${input("Purchase Bill No","purchaseNo","PUR-"+Date.now())}
+
+        ${input("Date","purchaseDate",today(),"date")}
+
+        <div class="field">
+
+          <label>Supplier</label>
+
+          <input
+            id="purchaseParty"
+            required
+            placeholder="Supplier"
+          >
+
+        </div>
+
+        <div class="field">
+
+          <label>Product</label>
+
+          <input
+            id="purchaseProduct"
+            required
+            list="productList2"
+          >
+
+          <datalist id="productList2">
+            ${
+              cache.products.map(
+                x=>`<option value="${esc(x.name)}">`
+              ).join("")
+            }
+          </datalist>
+
+        </div>
+
+        ${input("Quantity","purchaseQty","0","number")}
+
+        ${input("Amount","purchaseAmt","0","number")}
+
+        <div class="field">
+
+          <label>Payment</label>
+
+          <select id="purchasePayment">
+
+            <option value="cash">
+              Paid
+            </option>
+
+            <option value="credit">
+              Credit
+            </option>
+
+          </select>
+
+        </div>
+
+        ${input("Paid Now","purchasePaid","0","number")}
+
+        <div class="field two">
+
+          <label>Bill PDF</label>
+
+          <input
+            id="purchaseFile"
+            type="file"
+            accept="application/pdf,.pdf"
+          >
+
+        </div>
+
+      </div>
+
+      <div class="form-actions">
+
+        <button class="btn">
+          Save Purchase
+        </button>
+
+      </div>
+
+    </form>
+
+  </div>
+
+  <div class="section">
+
+    <h3>Recent Purchases</h3>
+
+    <div class="table-wrap">
+
+      <table>
+
+      <tr>
+        <th>Date</th>
+        <th>Bill</th>
+        <th>Supplier</th>
+        <th>Product</th>
+        <th>Qty</th>
+        <th>Amount</th>
+        <th>Paid</th>
+      </tr>
+
+      ${
+        cache.bills
+        .filter(x=>x.type==="purchase")
+        .slice(0,30)
+        .map(x=>`
+
+        <tr>
+
+          <td>${esc(x.date)}</td>
+
+          <td>${esc(x.no)}</td>
+
+          <td>${esc(x.party)}</td>
+
+          <td>${esc(x.prod)}</td>
+
+          <td>${x.qty||0}</td>
+
+          <td>${money(x.amt)}</td>
+
+          <td>${money(x.paid)}</td>
+
+        </tr>
+
+        `).join("")
+      }
+
+      </table>
+
+    </div>
+
+  </div>
+
+  `;
+
+  document.getElementById("purchaseForm")
+  .onsubmit=savePurchase;
+
+}
+
+
+async function savePurchase(e){
+
+  e.preventDefault();
+
+  const amt=
+  Number(purchaseAmt.value||0);
+
+  let paid=
+  Number(purchasePaid.value||0);
+
+  if(purchasePayment.value==="cash")
+    paid=amt;
+
+  const id="P-"+Date.now();
+
+  let fileUrl="";
+
+  const file=
+  document.getElementById("purchaseFile").files[0];
+
+  if(file){
+
+    fileUrl=await uploadBill(file,id);
+
+    if(!fileUrl)return;
+
+  }
+
+  const {error}=await db
+  .from("bills")
+  .insert({
+
+    id,
+
+    type:"purchase",
+
+    no:purchaseNo.value,
+
+    date:purchaseDate.value,
+
+    party:purchaseParty.value,
+
+    prod:purchaseProduct.value,
+
+    qty:Number(purchaseQty.value||0),
+
+    amt,
+
+    paid,
+
+    credit:Math.max(0,amt-paid),
+
+    payment_mode:purchasePayment.value,
+
+    file:fileUrl,
+
+    created_by:user.id
+
+  });
+
+  if(error){
+
+    toast(error.message);
+
+    return;
+
+  }
+
+  await updateStock(
+    purchaseProduct.value,
+    Number(purchaseQty.value||0)
+  );
+
+  toast("Purchase saved");
+
+  await loadAll();
+
+}
+
+
+/* =====================================================
+   PAYMENTS
+===================================================== */
+
+function paymentsPage(main){
+
+  const outstanding=
+  cache.bills
+  .filter(x=>x.type==="sale")
+  .reduce(
+    (a,x)=>a+
+    Math.max(
+      0,
+      Number(x.amt||0)-Number(x.paid||0)
+    ),
+    0
+  );
+
+  main.innerHTML=`
+
+  <div class="page-title">
+
+    <div>
+      <h2>Payments</h2>
+
+      <div class="hint">
+        Record money received later against customer credit.
+      </div>
+    </div>
+
+    <div class="pill red">
+      Outstanding: ${money(outstanding)}
+    </div>
+
+  </div>
+
+  <div class="card">
+
+    <form id="paymentForm">
+
+      <div class="formgrid">
+
+        ${input("Date","paymentDate",today(),"date")}
+
+        <div class="field">
+
+          <label>Customer</label>
+
+          <input
+            id="paymentParty"
+            required
+            list="paymentBuyerList"
+          >
+
+          <datalist id="paymentBuyerList">
+
+            ${
+              cache.buyers.map(
+                x=>`<option value="${esc(x.name)}">`
+              ).join("")
+            }
+
+          </datalist>
+
+        </div>
+
+        <div class="field">
+
+          <label>Bill ID (optional)</label>
+
+          <input
+            id="paymentBill"
+            placeholder="S-..."
+          >
+
+        </div>
+
+        ${input("Amount","paymentAmount","0","number")}
+
+        <div class="field">
+
+          <label>Payment Mode</label>
+
+          <select id="paymentMode">
+
+            <option>cash</option>
+            <option>bank</option>
+            <option>upi</option>
+            <option>cheque</option>
+
+          </select>
+
+        </div>
+
+        <div class="field two">
+
+          <label>Notes</label>
+
+          <textarea id="paymentNotes"></textarea>
+
+        </div>
+
+      </div>
+
+      <div class="form-actions">
+
+        <button class="btn green">
+          Record Payment
+        </button>
+
+      </div>
+
+    </form>
+
+  </div>
+
+  <div class="section">
+
+    <h3>Payment History</h3>
+
+    <div class="table-wrap">
+
+      <table>
+
+      <tr>
+        <th>Date</th>
+        <th>Party</th>
+        <th>Bill</th>
+        <th>Mode</th>
+        <th>Amount</th>
+        <th>Notes</th>
+      </tr>
+
+      ${
+        cache.payments.map(x=>`
+
+        <tr>
+
+          <td>${esc(x.date)}</td>
+
+          <td>${esc(x.party)}</td>
+
+          <td>${esc(x.bill_id||"-")}</td>
+
+          <td>${esc(x.mode)}</td>
+
+          <td><b>${money(x.amount)}</b></td>
+
+          <td>${esc(x.notes||"")}</td>
+
+        </tr>
+
+        `).join("")
+      }
+
+      </table>
+
+    </div>
+
+  </div>
+
+  `;
+
+  document.getElementById("paymentForm")
+  .onsubmit=savePayment;
+
+}
+
+
+async function savePayment(e){
+
+  e.preventDefault();
+
+  const amount=
+  Number(paymentAmount.value||0);
+
+  if(amount<=0){
+
+    toast("Enter a valid amount");
+
+    return;
+
+  }
+
+  const id="PAY-"+Date.now();
+
+  const {error}=await db
+  .from("payments")
+  .insert({
+
+    id,
+
+    date:paymentDate.value,
+
+    party:paymentParty.value,
+
+    bill_id:paymentBill.value||null,
+
+    type:"received",
+
+    amount,
+
+    mode:paymentMode.value,
+
+    notes:paymentNotes.value
+
+  });
+
+  if(error){
+
+    toast(error.message);
+
+    return;
+
+  }
+
+  if(paymentBill.value){
+
+    const bill=
+    cache.bills.find(
+      x=>x.id===paymentBill.value
+    );
+
+    if(bill){
+
+      const newPaid=
+      Number(bill.paid||0)+amount;
+
+      await db
+      .from("bills")
+      .update({
+
+        paid:newPaid,
+
+        credit:
+        Math.max(
+          0,
+          Number(bill.amt||0)-newPaid
+        )
+
+      })
+      .eq("id",bill.id);
+
+    }
+
+  }
+
+  toast("Payment recorded");
+
+  await loadAll();
+
+}
+
+
+/* =====================================================
+   PARTIES
+===================================================== */
+
+function partiesPage(main){
+
+  main.innerHTML=`
+
+  <div class="page-title">
+
+    <h2>Parties / Buyers</h2>
+
+  </div>
+
+  <div class="card">
+
+    <form id="buyerForm">
+
+      <div class="formgrid">
+
+        ${input("Name","buyerName","","text",true)}
+
+        ${input("Phone","buyerPhone")}
+
+        ${input("Main Product","buyerProduct")}
+
+        ${input("Demand","buyerDemand","0","number")}
+
+        ${input("Cycle Days","buyerCycle","30","number")}
+
+        ${input("Added","buyerAdded",today(),"date")}
+
+      </div>
+
+      <div class="form-actions">
+
+        <button class="btn">
+          Add Buyer
+        </button>
+
+      </div>
+
+    </form>
+
+  </div>
+
+  <div class="section">
+
+    <h3>Customers</h3>
+
+    <div class="table-wrap">
+
+      <table>
+
+      <tr>
+        <th>Name</th>
+        <th>Phone</th>
+        <th>Product</th>
+        <th>Demand</th>
+        <th>Cycle</th>
+        <th>Outstanding</th>
+        <th>Action</th>
+      </tr>
+
+      ${
+        cache.buyers.map(x=>{
+
+          const outstanding=
+          cache.bills
+          .filter(
+            b=>b.type==="sale" &&
+            b.party===x.name
+          )
+          .reduce(
+            (a,b)=>
+            a+
+            Math.max(
+              0,
+              Number(b.amt||0)-Number(b.paid||0)
+            ),
+            0
+          );
+
+          return `
+
+          <tr>
+
+            <td><b>${esc(x.name)}</b></td>
+
+            <td>${esc(x.phone||"")}</td>
+
+            <td>${esc(x.prod||"")}</td>
+
+            <td>${x.demand||0}</td>
+
+            <td>${x.cycle||30} days</td>
+
+            <td>
+
+              <span class="pill ${outstanding>0?"red":"green"}">
+
+                ${money(outstanding)}
+
+              </span>
+
+            </td>
+
+            <td>
+
+              <button
+                class="btn alt"
+                onclick="prefillPayment('${esc(x.name)}')"
+              >
+                Payment
+              </button>
+
+            </td>
+
+          </tr>
+
+          `;
+
+        }).join("")
+      }
+
+      </table>
+
+    </div>
+
+  </div>
+
+  `;
+
+  document.getElementById("buyerForm")
+  .onsubmit=saveBuyer;
+
+}
+
+
+function prefillPayment(name){
+
+  go("payments");
+
+  setTimeout(()=>{
+
+    const x=
+    document.getElementById("paymentParty");
+
+    if(x)x.value=name;
+
+  },100);
+
+}
+
+
+async function saveBuyer(e){
+
+  e.preventDefault();
+
+  const {error}=await db
+  .from("buyers")
+  .insert({
+
+    id:"B-"+Date.now(),
+
+    name:buyerName.value,
+
+    phone:buyerPhone.value,
+
+    prod:buyerProduct.value,
+
+    demand:Number(buyerDemand.value||0),
+
+    cycle:Number(buyerCycle.value||30),
+
+    added:buyerAdded.value
+
+  });
+
+  if(error){
+
+    toast(error.message);
+
+    return;
+
+  }
+
+  toast("Buyer added");
+
+  await loadAll();
+
+}
+
+
+/* =====================================================
+   PRODUCTS
+===================================================== */
+
+function productsPage(main){
+
+  main.innerHTML=`
+
+  <div class="page-title">
+    <h2>Products</h2>
+  </div>
+
+  <div class="card">
+
+    <form id="productForm">
+
+      <div class="formgrid">
+
+        ${input("Product Name","productName","","text",true)}
+
+        ${input("Unit","productUnit","kg")}
+
+        ${input("Opening Stock","productStock","0","number")}
+
+        ${input("Minimum Stock","productMin","0","number")}
+
+        ${input("Purchase Price","productPurchase","0","number")}
+
+        ${input("Sale Price","productSale","0","number")}
+
+      </div>
+
+      <div class="form-actions">
+
+        <button class="btn">
+          Add Product
+        </button>
+
+      </div>
+
+    </form>
+
+  </div>
+
+  <div class="section">
+
+    <h3>Product Master</h3>
+
+    <div class="table-wrap">
+
+      <table>
+
+      <tr>
+        <th>Product</th>
+        <th>Unit</th>
+        <th>Stock</th>
+        <th>Minimum</th>
+        <th>Purchase Price</th>
+        <th>Sale Price</th>
+        <th>Status</th>
+      </tr>
+
+      ${
+        cache.products.map(x=>`
+
+        <tr>
+
+          <td><b>${esc(x.name)}</b></td>
+
+          <td>${esc(x.unit)}</td>
+
+          <td>${x.stock||0}</td>
+
+          <td>${x.min_stock||0}</td>
+
+          <td>${money(x.purchase_price)}</td>
+
+          <td>${money(x.sale_price)}</td>
+
+          <td>
+
+            ${
+              Number(x.stock||0)<=Number(x.min_stock||0)
+              ?
+              `<span class="pill red">LOW STOCK</span>`
+              :
+              `<span class="pill green">OK</span>`
+            }
+
+          </td>
+
+        </tr>
+
+        `).join("")
+      }
+
+      </table>
+
+    </div>
+
+  </div>
+
+  `;
+
+  document.getElementById("productForm")
+  .onsubmit=saveProduct;
+
+}
+
+
+async function saveProduct(e){
+
+  e.preventDefault();
+
+  const {error}=await db
+  .from("products")
+  .insert({
+
+    id:"PR-"+Date.now(),
+
+    name:productName.value,
+
+    unit:productUnit.value,
+
+    stock:Number(productStock.value||0),
+
+    min_stock:Number(productMin.value||0),
+
+    purchase_price:
+    Number(productPurchase.value||0),
+
+    sale_price:
+    Number(productSale.value||0)
+
+  });
+
+  if(error){
+
+    toast(error.message);
+
+    return;
+
+  }
+
+  toast("Product added");
+
+  await loadAll();
+
+}
+
+
+/* =====================================================
+   STOCK
+===================================================== */
+
+function stockPage(main){
+
+  main.innerHTML=`
+
+  <div class="page-title">
+
+    <h2>Stock</h2>
+
+  </div>
+
+  <div class="grid">
+
+    ${
+      cache.products.map(x=>`
+
+      <div class="card metric">
+
+        <div class="label">
+          ${esc(x.name)}
+        </div>
+
+        <div class="value">
+          ${x.stock||0} ${esc(x.unit||"")}
+        </div>
+
+        <div class="small">
+
+          ${
+            Number(x.stock||0)<=Number(x.min_stock||0)
+            ?
+            "⚠️ Low stock"
+            :
+            "Stock healthy"
+          }
+
+        </div>
+
+      </div>
+
+      `).join("")
+    }
+
+  </div>
+
+  <div class="section">
+
+    <h3>Stock Movement</h3>
+
+    <div class="table-wrap">
+
+      <table>
+
+      <tr>
+        <th>Date</th>
+        <th>Type</th>
+        <th>Party</th>
+        <th>Product</th>
+        <th>Quantity</th>
+        <th>Amount</th>
+      </tr>
+
+      ${
+        cache.bills
+        .filter(x=>x.type==="sale"||x.type==="purchase")
+        .slice(0,100)
+        .map(x=>`
+
+        <tr>
+
+          <td>${esc(x.date)}</td>
+
+          <td>
+            ${
+              x.type==="sale"
+              ?
+              `<span class="pill red">OUT</span>`
+              :
+              `<span class="pill green">IN</span>`
+            }
+          </td>
+
+          <td>${esc(x.party)}</td>
+
+          <td>${esc(x.prod)}</td>
+
+          <td>${x.qty||0}</td>
+
+          <td>${money(x.amt)}</td>
+
+        </tr>
+
+        `).join("")
+      }
+
+      </table>
+
+    </div>
+
+  </div>
+
+  `;
+
+}
+
+
+/* =====================================================
+   EXPENSES
+===================================================== */
+
+function expensesPage(main){
+
+  main.innerHTML=`
+
+  <div class="page-title">
+    <h2>Expenses</h2>
+  </div>
+
+  <div class="card">
+
+    <form id="expenseForm">
+
+      <div class="formgrid">
+
+        ${input("Date","expenseDate",today(),"date")}
+
+        ${input("Category","expenseCategory")}
+
+        ${input("Description","expenseDescription")}
+
+        ${input("Amount","expenseAmount","0","number")}
+
+      </div>
+
+      <div class="form-actions">
+
+        <button class="btn">
+          Save Expense
+        </button>
+
+      </div>
+
+    </form>
+
+  </div>
+
+  <div class="section">
+
+    <h3>Expense History</h3>
+
+    <div class="table-wrap">
+
+      <table>
+
+      <tr>
+        <th>Date</th>
+        <th>Category</th>
+        <th>Description</th>
+        <th>Amount</th>
+      </tr>
+
+      ${
+        cache.expenses.map(x=>`
+
+        <tr>
+
+          <td>${esc(x.date)}</td>
+
+          <td>${esc(x.category)}</td>
+
+          <td>${esc(x.description)}</td>
+
+          <td><b>${money(x.amount)}</b></td>
+
+        </tr>
+
+        `).join("")
+      }
+
+      </table>
+
+    </div>
+
+  </div>
+
+  `;
+
+  document.getElementById("expenseForm")
+  .onsubmit=saveExpense;
+
+}
+
+
+async function saveExpense(e){
+
+  e.preventDefault();
+
+  const {error}=await db
+  .from("expenses")
+  .insert({
+
+    id:"EXP-"+Date.now(),
+
+    date:expenseDate.value,
+
+    category:expenseCategory.value,
+
+    description:expenseDescription.value,
+
+    amount:Number(expenseAmount.value||0)
+
+  });
+
+  if(error){
+
+    toast(error.message);
+
+    return;
+
+  }
+
+  toast("Expense saved");
+
+  await loadAll();
+
+}
+
+
+/* =====================================================
+   LEDGER
+===================================================== */
+
+function ledgerPage(main){
+
+  main.innerHTML=`
+
+  <div class="page-title">
+
+    <h2>Bill Ledger</h2>
+
+    <input
+      id="ledgerSearch"
+      class="search"
+      placeholder="Search customer / bill / product"
+    >
+
+  </div>
+
+  <div class="card">
+
+    <div class="table-wrap">
+
+      <table id="ledgerTable">
+
+      <tr>
+        <th>Date</th>
+        <th>Type</th>
+        <th>Bill</th>
+        <th>Party</th>
+        <th>Product</th>
+        <th>Amount</th>
+        <th>Paid</th>
+        <th>Credit</th>
+        <th>Status</th>
+        <th>PDF</th>
+      </tr>
+
+      ${
+        cache.bills
+        .map(ledgerRow)
+        .join("")
+      }
+
+      </table>
+
+    </div>
+
+  </div>
+
+  `;
+
+  document.getElementById("ledgerSearch")
+  .oninput=e=>{
+
+    const q=e.target.value.toLowerCase();
+
+    document
+    .querySelectorAll("#ledgerTable tr")
+    .forEach((row,i)=>{
+
+      if(i===0)return;
+
+      row.style.display=
+      row.textContent
+      .toLowerCase()
+      .includes(q)
+      ?
+      ""
+      :
+      "none";
+
+    });
+
+  };
+
+}
+
+
+/* =====================================================
+   FILE UPLOAD
+===================================================== */
+
+async function uploadBill(file,id){
+
+  if(file.type!=="application/pdf"){
+
+    toast("Only PDF bills are allowed");
+
+    return null;
+
+  }
+
+  const path=
+  `${user.id}/${id}-${file.name}`;
+
+  const {error}=await db.storage
+  .from("bills")
+  .upload(
+    path,
+    file,
+    {
+      upsert:true,
+      contentType:"application/pdf"
+    }
+  );
+
+  if(error){
+
+    toast("PDF upload failed: "+error.message);
+
+    return null;
+
+  }
+
+  return path;
+
+}
+
+
 async function downloadBill(path){
- const {data,error}=await db.storage.from("bill-pdfs").createSignedUrl(path,300);
- if(error){toast(error.message);return}window.open(data.signedUrl,"_blank");
+
+  if(!path){
+
+    toast("No PDF attached");
+
+    return;
+
+  }
+
+  const {data,error}=
+  await db.storage
+  .from("bills")
+  .download(path);
+
+  if(error){
+
+    toast(error.message);
+
+    return;
+
+  }
+
+  const url=
+  URL.createObjectURL(data);
+
+  const a=document.createElement("a");
+
+  a.href=url;
+
+  a.download=
+  path.split("/").pop()||"bill.pdf";
+
+  document.body.appendChild(a);
+
+  a.click();
+
+  a.remove();
+
+  URL.revokeObjectURL(url);
+
 }
-window.refresh=refresh;window.downloadBill=downloadBill;window.resetForm=resetForm;
+
+
+/* =====================================================
+   STOCK UPDATE
+===================================================== */
+
+async function updateStock(name,change){
+
+  if(!name)return;
+
+  const product=
+  cache.products.find(
+    x=>x.name.toLowerCase()===
+    name.toLowerCase()
+  );
+
+  if(!product)return;
+
+  await db
+  .from("products")
+  .update({
+    stock:
+    Number(product.stock||0)+change
+  })
+  .eq("id",product.id);
+
+}
+
+
+/* =====================================================
+   HELPERS
+===================================================== */
+
+function input(
+  label,
+  id,
+  value="",
+  type="text",
+  required=false
+){
+
+  return `
+
+  <div class="field">
+
+    <label>${label}</label>
+
+    <input
+      id="${id}"
+      type="${type}"
+      value="${esc(value)}"
+      ${required?"required":""}
+    >
+
+  </div>
+
+  `;
+
+}
+
+
+function billRow(x){
+
+  return `
+
+  <tr>
+
+    <td>${esc(x.date)}</td>
+
+    <td>
+      ${
+        x.type==="sale"
+        ?
+        `<span class="pill red">SALE</span>`
+        :
+        `<span class="pill green">PURCHASE</span>`
+      }
+    </td>
+
+    <td>${esc(x.party)}</td>
+
+    <td>${esc(x.prod)}</td>
+
+    <td>${money(x.amt)}</td>
+
+    <td>${esc(x.payment_mode||"")}</td>
+
+  </tr>
+
+  `;
+
+}
+
+
+function saleTableRow(x){
+
+  return `
+
+  <tr>
+
+    <td>${esc(x.date)}</td>
+
+    <td>${esc(x.no)}</td>
+
+    <td>${esc(x.party)}</td>
+
+    <td>${esc(x.prod)}</td>
+
+    <td>${money(x.amt)}</td>
+
+    <td>${money(x.paid)}</td>
+
+    <td>
+
+      ${
+        Number(x.credit||0)>0
+        ?
+        `<span class="pill red">${money(x.credit)}</span>`
+        :
+        `<span class="pill green">Paid</span>`
+      }
+
+    </td>
+
+    <td>
+
+      ${
+        x.file
+        ?
+        `<button
+          class="btn alt"
+          onclick="downloadBill('${esc(x.file)}')"
+        >
+          Download
+        </button>`
+        :
+        "-"
+      }
+
+    </td>
+
+  </tr>
+
+  `;
+
+}
+
+
+function ledgerRow(x){
+
+  const credit=
+  Math.max(
+    0,
+    Number(x.amt||0)-Number(x.paid||0)
+  );
+
+  return `
+
+  <tr>
+
+    <td>${esc(x.date)}</td>
+
+    <td>
+
+      ${
+        x.type==="sale"
+        ?
+        `<span class="pill red">SALE</span>`
+        :
+        `<span class="pill green">PURCHASE</span>`
+      }
+
+    </td>
+
+    <td>${esc(x.no)}</td>
+
+    <td>${esc(x.party)}</td>
+
+    <td>${esc(x.prod)}</td>
+
+    <td>${money(x.amt)}</td>
+
+    <td>${money(x.paid)}</td>
+
+    <td>${money(credit)}</td>
+
+    <td>
+
+      ${
+        credit>0
+        ?
+        `<span class="pill red">DUE</span>`
+        :
+        `<span class="pill green">PAID</span>`
+      }
+
+    </td>
+
+    <td>
+
+      ${
+        x.file
+        ?
+        `<button
+          class="btn alt"
+          onclick="downloadBill('${esc(x.file)}')"
+        >
+          Download PDF
+        </button>`
+        :
+        "-"
+      }
+
+    </td>
+
+  </tr>
+
+  `;
+
+}
+
+
+/* =====================================================
+   START
+===================================================== */
+
 boot();
+
 </script>
+
 </body>
 </html>
