@@ -3169,6 +3169,39 @@ function editBill(id){
   `;
 
   document.getElementById("billEditForm").onsubmit=e=>saveBillEdit(e,id);
+
+  // Keep Paid / Credit / Partial / Cash consistent while editing.
+  const editAmtEl=document.getElementById("editBillAmt");
+  const editPaidEl=document.getElementById("editBillPaid");
+  const editModeEl=document.getElementById("editBillMode");
+  const editStatusEl=document.getElementById("editBillStatus");
+
+  const recalcEditedBill=()=>{
+    const amt=Number(editAmtEl?.value||0);
+    let paid=Number(editPaidEl?.value||0);
+    const mode=editModeEl?.value||"";
+
+    if(mode==="credit"){
+      paid=0;
+      if(editPaidEl) editPaidEl.value="0";
+    }else if(mode==="cash"){
+      paid=amt;
+      if(editPaidEl) editPaidEl.value=amt.toFixed(2);
+    }else if(paid>amt){
+      paid=amt;
+      if(editPaidEl) editPaidEl.value=amt.toFixed(2);
+    }
+
+    const credit=Math.max(0,amt-paid);
+    const status=credit<=0 ? "PAID" : (paid>0 ? "PARTIAL" : "CREDIT");
+    if(editStatusEl) editStatusEl.value=status;
+  };
+
+  editAmtEl?.addEventListener("input",recalcEditedBill);
+  editPaidEl?.addEventListener("input",recalcEditedBill);
+  editModeEl?.addEventListener("change",recalcEditedBill);
+  recalcEditedBill();
+
   box.scrollIntoView({behavior:"smooth",block:"start"});
 }
 
@@ -3213,7 +3246,24 @@ async function saveBillEdit(e,id){
     if(!fileUrl)return;
   }
 
-  const {error}=await db
+  let paymentMode=document.getElementById("editBillMode").value;
+
+  // Payment mode is authoritative for the edited payment state.
+  if(paymentMode==="credit"){
+    paid=0;
+  }else if(paymentMode==="cash"){
+    paid=amount;
+  }
+
+  if(paid>amount){
+    toast("Paid amount cannot be greater than bill amount");
+    return;
+  }
+
+  const credit=Math.max(0,amount-paid);
+  const status=credit<=0 ? "PAID" : (paid>0 ? "PARTIAL" : "CREDIT");
+
+  const {data:updatedBill,error}=await db
   .from("bills")
   .update({
     date:document.getElementById("editBillDate").value,
@@ -3224,15 +3274,18 @@ async function saveBillEdit(e,id){
     qty,
     amt:amount,
     paid,
-    credit:Math.max(0,amount-paid),
-    payment_mode:document.getElementById("editBillMode").value,
-    status: amount-paid<=0 ? "PAID" : (paid>0 ? "PARTIAL" : "CREDIT"),
+    credit,
+    payment_mode:paymentMode,
+    status,
     notes:document.getElementById("editBillNotes").value.trim(),
     file:fileUrl
   })
-  .eq("id",id);
+  .eq("id",id)
+  .select()
+  .single();
 
   if(error){ toast(error.message); return; }
+  if(!updatedBill){ toast("Bill was not updated"); return; }
 
   // Reverse old stock movement, then apply the edited movement.
   if(oldBill.type==="purchase") await updateStock(oldProduct,-oldQty);
