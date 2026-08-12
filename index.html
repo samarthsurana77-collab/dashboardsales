@@ -3221,7 +3221,7 @@ async function saveBillEdit(e,id){
   if(!oldBill){ toast("Bill not found"); return; }
 
   const amount=Number(document.getElementById("editBillAmt").value||0);
-  const paid=Number(document.getElementById("editBillPaid").value||0);
+  let paid=Number(document.getElementById("editBillPaid").value||0);
   const qty=Number(document.getElementById("editBillQty").value||0);
 
   if(amount<0 || paid<0 || qty<0){
