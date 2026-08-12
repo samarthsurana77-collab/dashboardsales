@@ -923,33 +923,29 @@ function dashboardPage(main){
       0
     );
 
-  const productCost = (bill) => {
+  // PROFIT = (SALE PRICE - PURCHASE PRICE) x SOLD QUANTITY
+  // Expenses, payments and purchase bills do NOT change this profit figure.
+  const productProfit = (bill) => {
     const product = allProducts.find(p =>
       String(p.name||"").trim().toLowerCase() ===
       String(bill.prod||"").trim().toLowerCase()
     );
 
-    return Number(bill.qty||0) *
-      Number(product?.purchase_price||0);
+    const purchasePrice = Number(product?.purchase_price||0);
+    const salePrice = Number(product?.sale_price||0);
+    const qty = Number(bill.qty||0);
+
+    return (salePrice - purchasePrice) * qty;
   };
 
-  const cogsFor = arr =>
+  const profitFor = arr =>
     arr
     .filter(x=>x.type==="sale")
-    .reduce((a,x)=>a+productCost(x),0);
+    .reduce((a,x)=>a+productProfit(x),0);
 
-  const todayCOGS = cogsFor(todayBills);
-  const periodCOGS = cogsFor(periodBills);
-  const totalCOGS = cogsFor(allBills);
-
-  const todayGrossProfit = todaySales - todayCOGS;
-  const todayNetProfit = todayGrossProfit - todayExpenses;
-
-  const periodGrossProfit = periodSales - periodCOGS;
-  const periodNetProfit = periodGrossProfit - periodExpenses;
-
-  const grossProfit = totalSales - totalCOGS;
-  const netProfit = grossProfit - totalExpenses;
+  const todayProfit = profitFor(todayBills);
+  const periodProfit = profitFor(periodBills);
+  const totalProfit = profitFor(allBills);
 
   const stockValue =
     allProducts.reduce(
@@ -1130,15 +1126,9 @@ function dashboardPage(main){
       )}
 
       ${metric(
-        "Today's Gross Profit",
-        money(todayGrossProfit),
-        "Sales minus estimated product cost"
-      )}
-
-      ${metric(
-        "Today's Net Profit",
-        money(todayNetProfit),
-        "Gross profit minus expenses"
+        "Today's Profit",
+        money(todayProfit),
+        "(Sale Price - Purchase Price) x Quantity Sold"
       )}
 
       ${metric(
@@ -1219,15 +1209,9 @@ function dashboardPage(main){
     <div class="grid" style="margin-top:14px">
 
       ${metric(
-        rangeLabel+" Gross Profit",
-        money(periodGrossProfit),
-        "Sales minus estimated COGS"
-      )}
-
-      ${metric(
-        rangeLabel+" Net Profit",
-        money(periodNetProfit),
-        "Gross profit minus expenses"
+        rangeLabel+" Profit",
+        money(periodProfit),
+        "(Sale Price - Purchase Price) x Quantity Sold"
       )}
 
       ${metric(
@@ -1268,15 +1252,9 @@ function dashboardPage(main){
       )}
 
       ${metric(
-        "Gross Profit",
-        money(grossProfit),
-        "Sales minus estimated COGS"
-      )}
-
-      ${metric(
-        "Net Profit",
-        money(netProfit),
-        "Gross profit minus expenses"
+        "Total Profit",
+        money(totalProfit),
+        "(Sale Price - Purchase Price) x Quantity Sold"
       )}
 
     </div>
@@ -3040,6 +3018,7 @@ function ledgerPage(main){
         <th>Credit</th>
         <th>Status</th>
         <th>PDF</th>
+        <th>Edit</th>
       </tr>
 
       ${
@@ -3049,6 +3028,8 @@ function ledgerPage(main){
       }
 
       </table>
+
+      <div id="billEditBox" class="card" style="display:none;margin-top:15px"></div>
 
     </div>
 
@@ -3080,6 +3061,147 @@ function ledgerPage(main){
 
   };
 
+}
+
+
+/* =====================================================
+   EDIT BILL FROM LEDGER
+===================================================== */
+
+function editBill(id){
+
+  const bill=cache.bills.find(x=>x.id===id);
+
+  if(!bill){
+    toast("Bill not found");
+    return;
+  }
+
+  const box=document.getElementById("billEditBox");
+
+  if(!box)return;
+
+  box.style.display="block";
+
+  box.innerHTML=`
+
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
+      <h3 style="margin:0">Edit Bill — ${esc(bill.no||bill.id)}</h3>
+      <button type="button" class="btn alt" onclick="closeBillEdit()">Close</button>
+    </div>
+
+    <form id="billEditForm">
+
+      <div class="formgrid">
+
+        ${input("Date","editBillDate",bill.date||today(),"date",true)}
+        ${input("Bill Number","editBillNo",bill.no||"")}
+
+        <div class="field">
+          <label>Type</label>
+          <select id="editBillType" class="input">
+            <option value="sale" ${bill.type==="sale"?"selected":""}>Sale</option>
+            <option value="purchase" ${bill.type==="purchase"?"selected":""}>Purchase</option>
+          </select>
+        </div>
+
+        ${input("Party","editBillParty",bill.party||"","text",true)}
+        ${input("Product","editBillProd",bill.prod||"","text",true)}
+        ${input("Quantity","editBillQty",bill.qty||0,"number",true)}
+        ${input("Bill Amount","editBillAmt",bill.amt||0,"number",true)}
+        ${input("Paid","editBillPaid",bill.paid||0,"number",true)}
+
+        <div class="field">
+          <label>Payment Mode</label>
+          <select id="editBillMode" class="input">
+            <option value="cash" ${bill.payment_mode==="cash"?"selected":""}>Cash</option>
+            <option value="bank" ${bill.payment_mode==="bank"?"selected":""}>Bank</option>
+            <option value="upi" ${bill.payment_mode==="upi"?"selected":""}>UPI</option>
+            <option value="credit" ${bill.payment_mode==="credit"?"selected":""}>Credit</option>
+            <option value="partial" ${bill.payment_mode==="partial"?"selected":""}>Partial</option>
+          </select>
+        </div>
+
+        ${input("Status","editBillStatus",bill.status||"")}
+        ${input("Notes","editBillNotes",bill.notes||"")}
+
+      </div>
+
+      <div class="form-actions">
+        <button class="btn" type="submit">Save Changes</button>
+        <button class="btn alt" type="button" onclick="closeBillEdit()">Cancel</button>
+      </div>
+
+    </form>
+  `;
+
+  document.getElementById("billEditForm").onsubmit=e=>saveBillEdit(e,id);
+  box.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function closeBillEdit(){
+  const box=document.getElementById("billEditBox");
+  if(box){
+    box.style.display="none";
+    box.innerHTML="";
+  }
+}
+
+async function saveBillEdit(e,id){
+
+  e.preventDefault();
+
+  const oldBill=cache.bills.find(x=>x.id===id);
+  if(!oldBill){ toast("Bill not found"); return; }
+
+  const amount=Number(document.getElementById("editBillAmt").value||0);
+  const paid=Number(document.getElementById("editBillPaid").value||0);
+  const qty=Number(document.getElementById("editBillQty").value||0);
+
+  if(amount<0 || paid<0 || qty<0){
+    toast("Amount, paid and quantity cannot be negative");
+    return;
+  }
+
+  if(paid>amount){
+    toast("Paid amount cannot be greater than bill amount");
+    return;
+  }
+
+  const type=document.getElementById("editBillType").value;
+  const newProduct=document.getElementById("editBillProd").value.trim();
+  const oldProduct=oldBill.prod||"";
+  const oldQty=Number(oldBill.qty||0);
+
+  const {error}=await db
+  .from("bills")
+  .update({
+    date:document.getElementById("editBillDate").value,
+    no:document.getElementById("editBillNo").value.trim(),
+    type,
+    party:document.getElementById("editBillParty").value.trim(),
+    prod:newProduct,
+    qty,
+    amt:amount,
+    paid,
+    credit:Math.max(0,amount-paid),
+    payment_mode:document.getElementById("editBillMode").value,
+    status:document.getElementById("editBillStatus").value.trim(),
+    notes:document.getElementById("editBillNotes").value.trim()
+  })
+  .eq("id",id);
+
+  if(error){ toast(error.message); return; }
+
+  // Reverse old stock movement, then apply the edited movement.
+  if(oldBill.type==="purchase") await updateStock(oldProduct,-oldQty);
+  if(oldBill.type==="sale") await updateStock(oldProduct,oldQty);
+  if(type==="purchase") await updateStock(newProduct,qty);
+  if(type==="sale") await updateStock(newProduct,-qty);
+
+  toast("Bill updated successfully");
+  closeBillEdit();
+  await loadAll();
 }
 
 
@@ -3316,73 +3438,22 @@ function saleTableRow(x){
 
 function ledgerRow(x){
 
-  const credit=
-  Math.max(
-    0,
-    Number(x.amt||0)-Number(x.paid||0)
-  );
+  const credit=Math.max(0,Number(x.amt||0)-Number(x.paid||0));
 
   return `
-
   <tr>
-
     <td>${esc(x.date)}</td>
-
-    <td>
-
-      ${
-        x.type==="sale"
-        ?
-        `<span class="pill red">SALE</span>`
-        :
-        `<span class="pill green">PURCHASE</span>`
-      }
-
-    </td>
-
-    <td>${esc(x.no)}</td>
-
-    <td>${esc(x.party)}</td>
-
-    <td>${esc(x.prod)}</td>
-
+    <td>${x.type==="sale" ? `<span class="pill red">SALE</span>` : `<span class="pill green">PURCHASE</span>`}</td>
+    <td>${esc(x.no||x.id||"")}</td>
+    <td>${esc(x.party||"")}</td>
+    <td>${esc(x.prod||"")}</td>
     <td>${money(x.amt)}</td>
-
-    <td>${money(x.paid)}</td>
-
+    <td>${money(x.paid||0)}</td>
     <td>${money(credit)}</td>
-
-    <td>
-
-      ${
-        credit>0
-        ?
-        `<span class="pill red">DUE</span>`
-        :
-        `<span class="pill green">PAID</span>`
-      }
-
-    </td>
-
-    <td>
-
-      ${
-        x.file
-        ?
-        `<button
-          class="btn alt"
-          onclick="downloadBill('${esc(x.file)}')"
-        >
-          Download PDF
-        </button>`
-        :
-        "-"
-      }
-
-    </td>
-
+    <td><span class="pill ${credit>0?"red":"green"}">${esc(x.status || (credit>0 ? "DUE" : "PAID"))}</span></td>
+    <td>${x.file ? `<button class="btn alt" type="button" onclick="downloadBill('${esc(x.file)}')">Download PDF</button>` : "-"}</td>
+    <td><button class="btn alt" type="button" onclick="editBill('${esc(x.id)}')">Edit</button></td>
   </tr>
-
   `;
 
 }
