@@ -4247,84 +4247,36 @@ function productsPage(main){
   main.innerHTML=`
 
   <div class="page-title">
-
     <h2>Products</h2>
-
   </div>
-
 
   <div class="card">
-
     <form id="productForm">
-
       <div class="formgrid">
-
-        ${input(
-          "Product Name",
-          "productName",
-          "",
-          "text",
-          true
-        )}
-
-        ${input(
-          "Unit",
-          "productUnit",
-          "kg"
-        )}
-
-        ${input(
-          "Opening Stock",
-          "productStock",
-          "0",
-          "number"
-        )}
-
-        ${input(
-          "Minimum Stock",
-          "productMin",
-          "0",
-          "number"
-        )}
-
-        ${input(
-          "Purchase Price",
-          "productPurchase",
-          "0",
-          "number"
-        )}
-
-        ${input(
-          "Sale Price",
-          "productSale",
-          "0",
-          "number"
-        )}
-
+        ${input("Product Name","productName","","text",true)}
+        ${input("Unit","productUnit","kg")}
+        ${input("Opening Stock","productStock","0","number")}
+        ${input("Minimum Stock","productMin","0","number")}
+        ${input("Purchase Price","productPurchase","0","number")}
+        ${input("Sale Price","productSale","0","number")}
       </div>
-
 
       <div class="form-actions">
-
-        <button class="btn">
-          Add Product
-        </button>
-
+        <button class="btn" type="submit">Add Product</button>
       </div>
-
     </form>
-
   </div>
 
-
   <div class="section">
-
     <h3>Product Master</h3>
 
+    <div class="notice">
+      <b>Important:</b> Sale and purchase calculations use the prices saved here.
+      You can edit a product if a price/name was entered incorrectly, or remove it if it was added by mistake.
+    </div>
+
     <div class="table-wrap">
-
       <table>
-
         <tr>
           <th>Product</th>
           <th>Unit</th>
@@ -4333,150 +4285,203 @@ function productsPage(main){
           <th>Purchase Price</th>
           <th>Sale Price</th>
           <th>Status</th>
+          <th>Actions</th>
         </tr>
 
-        ${
-          cache.products.map(
-            x=>`
-
-            <tr>
-
-              <td>
-                <b>${esc(x.name)}</b>
-              </td>
-
-              <td>
-                ${esc(x.unit)}
-              </td>
-
-              <td>
-                ${x.stock||0}
-              </td>
-
-              <td>
-                ${x.min_stock||0}
-              </td>
-
-              <td>
-                ${money(x.purchase_price)}
-              </td>
-
-              <td>
-                ${money(x.sale_price)}
-              </td>
-
-              <td>
-
-                ${
-                  Number(x.stock||0)<=
-                  Number(x.min_stock||0)
-
-                  ?
-
-                  `<span class="pill red">
-                    LOW STOCK
-                  </span>`
-
-                  :
-
-                  `<span class="pill green">
-                    OK
-                  </span>`
-                }
-
-              </td>
-
-            </tr>
-
-          `
-          ).join("")
-        }
-
+        ${cache.products.length ? cache.products.map(x=>`
+          <tr>
+            <td><b>${esc(x.name)}</b></td>
+            <td>${esc(x.unit||"")}</td>
+            <td>${x.stock||0}</td>
+            <td>${x.min_stock||0}</td>
+            <td>${money(x.purchase_price)}</td>
+            <td>${money(x.sale_price)}</td>
+            <td>
+              ${
+                Number(x.stock||0)<=Number(x.min_stock||0)
+                ? `<span class="pill red">LOW STOCK</span>`
+                : `<span class="pill green">OK</span>`
+              }
+            </td>
+            <td>
+              <div class="actions">
+                <button class="btn alt" type="button" onclick="editProduct('${esc(x.id)}')">Edit</button>
+                <button class="btn danger" type="button" onclick="deleteProduct('${esc(x.id)}')">Remove</button>
+              </div>
+            </td>
+          </tr>
+        `).join("") : `
+          <tr>
+            <td colspan="8" class="empty">
+              No products in Product Master yet. Add your products above before making new sales.
+            </td>
+          </tr>
+        `}
       </table>
-
     </div>
 
+    <div id="productEditBox" class="card" style="display:none;margin-top:15px"></div>
   </div>
 
   `;
 
-
-  document.getElementById(
-    "productForm"
-  ).onsubmit=saveProduct;
-
+  document.getElementById("productForm").onsubmit=saveProduct;
 }
 
+function editProduct(id){
+  const product=cache.products.find(x=>x.id===id);
+  const box=document.getElementById("productEditBox");
+
+  if(!product || !box){
+    toast("Product not found");
+    return;
+  }
+
+  box.style.display="block";
+  box.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
+      <h3 style="margin:0">Edit Product — ${esc(product.name)}</h3>
+      <button class="btn alt" type="button" onclick="closeProductEdit()">Close</button>
+    </div>
+
+    <form id="productEditForm">
+      <div class="formgrid">
+        ${input("Product Name","editProductName",product.name||"","text",true)}
+        ${input("Unit","editProductUnit",product.unit||"kg")}
+        ${input("Stock","editProductStock",product.stock||0,"number")}
+        ${input("Minimum Stock","editProductMin",product.min_stock||0,"number")}
+        ${input("Purchase Price","editProductPurchase",product.purchase_price||0,"number")}
+        ${input("Sale Price","editProductSale",product.sale_price||0,"number")}
+      </div>
+
+      <div class="form-actions">
+        <button class="btn" type="submit">Save Changes</button>
+        <button class="btn alt" type="button" onclick="closeProductEdit()">Cancel</button>
+      </div>
+    </form>
+  `;
+
+  document.getElementById("productEditForm").onsubmit=async e=>{
+    e.preventDefault();
+
+    const name=document.getElementById("editProductName").value.trim();
+    const unit=document.getElementById("editProductUnit").value.trim()||"kg";
+    const stock=Number(document.getElementById("editProductStock").value||0);
+    const minStock=Number(document.getElementById("editProductMin").value||0);
+    const purchasePrice=Number(document.getElementById("editProductPurchase").value||0);
+    const salePrice=Number(document.getElementById("editProductSale").value||0);
+
+    if(!name){ toast("Product name is required"); return; }
+    if(stock<0 || minStock<0 || purchasePrice<0 || salePrice<=0){
+      toast("Enter valid product values");
+      return;
+    }
+
+    const duplicate=cache.products.find(x=>
+      x.id!==id && normalizeProductName(x.name)===normalizeProductName(name)
+    );
+    if(duplicate){
+      toast("A product with this name already exists");
+      return;
+    }
+
+    const {error}=await db.from("products").update({
+      name,
+      unit,
+      stock,
+      min_stock:minStock,
+      purchase_price:purchasePrice,
+      sale_price:salePrice
+    }).eq("id",id);
+
+    if(error){
+      toast("Product update failed: "+error.message);
+      return;
+    }
+
+    toast("Product updated");
+    await loadAll();
+  };
+}
+
+function closeProductEdit(){
+  const box=document.getElementById("productEditBox");
+  if(box){
+    box.style.display="none";
+    box.innerHTML="";
+  }
+}
+
+async function deleteProduct(id){
+  const product=cache.products.find(x=>x.id===id);
+  if(!product){
+    toast("Product not found");
+    return;
+  }
+
+  const usedInBills=cache.bills.some(x=>
+    normalizeProductName(x.prod)===normalizeProductName(product.name)
+  );
+
+  const warning=usedInBills
+    ? `\\n\\nWARNING: ${product.name} is already used in existing bills. Removing it will keep those old bills, but this product will no longer be available in Product Master for future calculations.\\n\\nContinue?`
+    : `\\n\\nRemove ${product.name} from Product Master?`;
+
+  if(!confirm(warning)) return;
+
+  const {error}=await db.from("products").delete().eq("id",id);
+
+  if(error){
+    toast("Product removal failed: "+error.message);
+    return;
+  }
+
+  toast("Product removed from Product Master");
+  await loadAll();
+}
 
 async function saveProduct(e){
 
   e.preventDefault();
 
+  const name=document.getElementById("productName").value.trim();
+  const unit=document.getElementById("productUnit").value.trim()||"kg";
+  const stock=Number(document.getElementById("productStock").value||0);
+  const minStock=Number(document.getElementById("productMin").value||0);
+  const purchasePrice=Number(document.getElementById("productPurchase").value||0);
+  const salePrice=Number(document.getElementById("productSale").value||0);
 
-  const {error}=
-    await db
-      .from("products")
-      .insert({
-
-        id:
-          "PR-"+Date.now(),
-
-        name:
-          document.getElementById(
-            "productName"
-          ).value,
-
-        unit:
-          document.getElementById(
-            "productUnit"
-          ).value,
-
-        stock:
-          Number(
-            document.getElementById(
-              "productStock"
-            ).value||0
-          ),
-
-        min_stock:
-          Number(
-            document.getElementById(
-              "productMin"
-            ).value||0
-          ),
-
-        purchase_price:
-          Number(
-            document.getElementById(
-              "productPurchase"
-            ).value||0
-          ),
-
-        sale_price:
-          Number(
-            document.getElementById(
-              "productSale"
-            ).value||0
-          )
-
-      });
-
-
-  if(error){
-
-    toast(error.message);
-
+  if(!name){ toast("Product name is required"); return; }
+  if(stock<0 || minStock<0 || purchasePrice<0 || salePrice<=0){
+    toast("Enter valid product values");
     return;
-
   }
 
-
-  toast(
-    "Product added"
+  const duplicate=cache.products.find(x=>
+    normalizeProductName(x.name)===normalizeProductName(name)
   );
+  if(duplicate){
+    toast("This product already exists in Product Master");
+    return;
+  }
 
+  const {error}=await db.from("products").insert({
+    id:"PR-"+Date.now(),
+    name,
+    unit,
+    stock,
+    min_stock:minStock,
+    purchase_price:purchasePrice,
+    sale_price:salePrice
+  });
+
+  if(error){
+    toast("Product add failed: "+error.message);
+    return;
+  }
+
+  toast("Product added to Product Master");
   await loadAll();
-
 }
 
 
