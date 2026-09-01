@@ -3677,6 +3677,7 @@ function paymentsPage(main){
           <th>Mode</th>
           <th>Amount</th>
           <th>Notes</th>
+          <th>Action</th>
         </tr>
 
         ${
@@ -3691,6 +3692,15 @@ function paymentsPage(main){
               <td>${esc(x.mode)}</td>
               <td><b>${money(x.amount)}</b></td>
               <td>${esc(x.notes||"")}</td>
+              <td>
+                <button
+                  class="btn red"
+                  type="button"
+                  onclick="deletePayment('${esc(x.id)}')"
+                >
+                  Remove
+                </button>
+              </td>
 
             </tr>
 
@@ -3846,6 +3856,134 @@ async function savePayment(e){
 
   toast(
     "Payment recorded"
+  );
+
+  await loadAll();
+
+}
+
+
+async function deletePayment(id){
+
+  const payment=
+    (cache.payments||[]).find(
+      x=>x.id===id
+    );
+
+
+  if(!payment){
+
+    toast(
+      "Payment not found"
+    );
+
+    return;
+
+  }
+
+
+  const label=
+    (payment.party||"")+
+    ", "+
+    money(payment.amount)+
+    " ("+
+    (payment.date||"")+
+    ")";
+
+
+  if(!confirm(
+    "Delete this payment permanently?\n\n"+
+    label+
+    "\n\nThis cannot be undone."
+  ))return;
+
+
+  const {data:deletedRows,error}=
+    await db
+      .from("payments")
+      .delete()
+      .eq("id",id)
+      .select();
+
+
+  if(error){
+
+    toast(
+      "Delete failed: "+
+      error.message
+    );
+
+    return;
+
+  }
+
+
+  if(!deletedRows || deletedRows.length===0){
+
+    toast(
+      "Nothing was deleted. The database blocked it (check delete permission / RLS policy on the payments table)."
+    );
+
+    return;
+
+  }
+
+
+  /*
+    If this payment was recorded against a bill, put the money
+    back onto that bill so its paid / credit / status stay correct.
+  */
+
+  if(payment.bill_id){
+
+    const bill=
+      (cache.bills||[]).find(
+        x=>x.id===payment.bill_id
+      );
+
+
+    if(bill){
+
+      const newPaid=
+        Math.max(
+          0,
+          Number(bill.paid||0)-
+          Number(payment.amount||0)
+        );
+
+
+      const newCredit=
+        Math.max(
+          0,
+          Number(bill.amt||0)-
+          newPaid
+        );
+
+
+      const newStatus=
+        newCredit<=0
+          ? "PAID"
+          : newPaid>0
+            ? "PARTIAL"
+            : "CREDIT";
+
+
+      await db
+        .from("bills")
+        .update({
+          paid:newPaid,
+          credit:newCredit,
+          status:newStatus
+        })
+        .eq("id",bill.id);
+
+    }
+
+  }
+
+
+  toast(
+    "Payment deleted"
   );
 
   await loadAll();
