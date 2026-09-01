@@ -5030,6 +5030,107 @@ function closeBillEdit(){
 }
 
 
+async function deleteBill(id){
+
+  const bill=
+    cache.bills.find(
+      x=>x.id===id
+    );
+
+
+  if(!bill){
+
+    toast(
+      "Bill not found"
+    );
+
+    return;
+
+  }
+
+
+  const label=
+    (bill.type==="sale"?"SALE":"PURCHASE")+
+    " "+
+    (bill.no||bill.id)+
+    " ("+
+    (bill.party||"")+
+    ", "+
+    money(bill.amt)+
+    ")";
+
+
+  if(!confirm(
+    "Delete this bill permanently?\n\n"+
+    label+
+    "\n\nAny payments recorded against it will also be removed. This cannot be undone."
+  ))return;
+
+
+  /*
+    Remove any later payments linked to this bill first,
+    so no orphan payment rows are left behind.
+  */
+
+  const linkedPayments=
+    (cache.payments||[]).filter(
+      p=>String(p.bill_id||"")===String(id)
+    );
+
+
+  if(linkedPayments.length){
+
+    const {error:payError}=
+      await db
+        .from("payments")
+        .delete()
+        .eq("bill_id",id);
+
+
+    if(payError){
+
+      toast(
+        "Could not remove linked payments: "+
+        payError.message
+      );
+
+      return;
+
+    }
+
+  }
+
+
+  const {error}=
+    await db
+      .from("bills")
+      .delete()
+      .eq("id",id);
+
+
+  if(error){
+
+    toast(
+      "Delete failed: "+
+      error.message
+    );
+
+    return;
+
+  }
+
+
+  closeBillEdit();
+
+  toast(
+    "Bill deleted"
+  );
+
+  await loadAll();
+
+}
+
+
 async function saveBillEdit(e,id){
 
   e.preventDefault();
@@ -5643,15 +5744,29 @@ function ledgerRow(x){
 
     <td>
 
-      <button
-        class="btn alt"
-        type="button"
-        onclick="
-          editBill('${esc(x.id)}')
-        "
-      >
-        Edit
-      </button>
+      <div class="actions">
+
+        <button
+          class="btn alt"
+          type="button"
+          onclick="
+            editBill('${esc(x.id)}')
+          "
+        >
+          Edit
+        </button>
+
+        <button
+          class="btn red"
+          type="button"
+          onclick="
+            deleteBill('${esc(x.id)}')
+          "
+        >
+          Remove
+        </button>
+
+      </div>
 
     </td>
 
