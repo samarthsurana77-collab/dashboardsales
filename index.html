@@ -3202,6 +3202,7 @@ function purchasePage(main){
           <th>Qty</th>
           <th>Amount</th>
           <th>Paid</th>
+          <th>Action</th>
         </tr>
 
         ${
@@ -3222,6 +3223,12 @@ function purchasePage(main){
                 <td>${x.qty||0}</td>
                 <td>${money(x.amt)}</td>
                 <td>${money(x.paid)}</td>
+                <td>
+                  <div class="actions">
+                    <button class="btn alt" type="button" onclick="editBill('${esc(x.id)}')">Edit</button>
+                    <button class="btn red" type="button" onclick="deleteBill('${esc(x.id)}')">Remove</button>
+                  </div>
+                </td>
 
               </tr>
 
@@ -3233,6 +3240,8 @@ function purchasePage(main){
       </table>
 
     </div>
+
+    <div id="billEditBox" class="card" style="display:none;margin-top:15px"></div>
 
   </div>
 
