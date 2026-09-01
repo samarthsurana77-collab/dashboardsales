@@ -2537,6 +2537,7 @@ function salesPage(main){
           <th>Interest</th>
           <th>Net Profit</th>
           <th>Bill</th>
+          <th>Action</th>
         </tr>
 
         ${
@@ -2552,6 +2553,8 @@ function salesPage(main){
       </table>
 
     </div>
+
+    <div id="billEditBox" class="card" style="display:none;margin-top:15px"></div>
 
   </div>
 
@@ -5992,6 +5995,13 @@ function saleTableRow(x){
         "-"
       }
 
+    </td>
+
+    <td>
+      <div class="actions">
+        <button class="btn alt" type="button" onclick="editBill('${esc(x.id)}')">Edit</button>
+        <button class="btn red" type="button" onclick="deleteBill('${esc(x.id)}')">Remove</button>
+      </div>
     </td>
 
   </tr>
