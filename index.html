@@ -1158,7 +1158,7 @@ async function loadAll(){
       .select("*")
       .order("created_at",{ascending:false}),
 
-    db.from("products")
+    db.from("app_products")
       .select("*")
       .order("name"),
 
@@ -2164,7 +2164,7 @@ async function quickAddProduct(){
   if(!name){ toast("Enter product name"); return; }
   if(purchase<0 || sale<=0){ toast("Enter valid purchase and sale prices"); return; }
 
-  const {error}=await db.from("products").insert({
+  const {error}=await db.from("app_products").insert({
     id:"PR-"+Date.now(),
     name,
     unit:"kg",
@@ -4259,7 +4259,7 @@ function editProduct(id){
       return;
     }
 
-    const {error}=await db.from("products").update({
+    const {error}=await db.from("app_products").update({
       name,
       unit,
       purchase_price:purchasePrice,
@@ -4301,7 +4301,7 @@ async function deleteProduct(id){
 
   if(!confirm(warning)) return;
 
-  const {error}=await db.from("products").delete().eq("id",id);
+  const {error}=await db.from("app_products").delete().eq("id",id);
 
   if(error){
     toast("Product removal failed: "+error.message);
@@ -4335,7 +4335,7 @@ async function saveProduct(e){
     return;
   }
 
-  const {error}=await db.from("products").insert({
+  const {error}=await db.from("app_products").insert({
     id:"PR-"+Date.now(),
     name,
     unit,
