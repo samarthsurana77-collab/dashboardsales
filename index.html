@@ -458,13 +458,79 @@ function findProductByName(value){
 
 
 /*
+  STOCK IS CALCULATED, NOT STORED.
+  Stock for a product = total purchased - total sold,
+  taken from the bills the user actually recorded.
+*/
+function calculateStockForProduct(productName){
+
+  const key=normalizeProductName(productName);
+
+  if(!key)return 0;
+
+  let purchased=0;
+  let sold=0;
+
+  (cache.bills||[]).forEach(b=>{
+
+    if(normalizeProductName(b.prod)!==key)return;
+
+    const qty=Number(b.qty||0);
+
+    if(b.type==="purchase")purchased+=qty;
+
+    if(b.type==="sale")sold+=qty;
+
+  });
+
+  return purchased-sold;
+
+}
+
+
+/*
+  Average purchase cost actually paid for a product,
+  from recorded purchase bills. Used for stock value.
+*/
+function averagePurchaseCostForProduct(productName){
+
+  const key=normalizeProductName(productName);
+
+  if(!key)return 0;
+
+  let qty=0;
+  let cost=0;
+
+  (cache.bills||[]).forEach(b=>{
+
+    if(b.type!=="purchase")return;
+
+    if(normalizeProductName(b.prod)!==key)return;
+
+    const q=Number(b.qty||0);
+
+    qty+=q;
+
+    cost+=Number(b.amt||0);
+
+  });
+
+  return qty>0 ? cost/qty : 0;
+
+}
+
+
+/*
   SALE CALCULATION
 
   Sale Amount =
   Sale Price \u00d7 Quantity
 
+  Purchase cost comes from the average cost of recorded
+  purchase bills for that product (not stored on the product).
+
   Profit =
-  (Sale Price - Purchase Price) \u00d7 Quantity
+  (Sale Price - Avg Purchase Cost) \u00d7 Quantity
 */
 function calculateProductProfit(
   productName,
@@ -490,7 +556,7 @@ function calculateProductProfit(
     Number(quantity||0);
 
   const purchasePrice=
-    Number(product.purchase_price||0);
+    averagePurchaseCostForProduct(product.name);
 
   const salePrice=
     Number(product.sale_price||0);
@@ -515,8 +581,9 @@ function calculateProductProfit(
 /*
   PURCHASE CALCULATION
 
-  Purchase Amount =
-  Purchase Price \u00d7 Quantity
+  On the purchase screen the user types the purchase price
+  themselves (that is the price they are paying now), so this
+  helper just returns the product so the screen can proceed.
 */
 function calculateProductPurchase(
   productName,
@@ -539,14 +606,10 @@ function calculateProductPurchase(
   const qty=
     Number(quantity||0);
 
-  const purchasePrice=
-    Number(product.purchase_price||0);
-
   return{
     product,
-    purchasePrice,
-    amount:
-      purchasePrice*qty
+    purchasePrice:0,
+    amount:0
   };
 
 }
@@ -680,7 +743,7 @@ function calculateSaleFinancingInterest(sale,bills,payments){
   if(!sale || sale.type!=="sale") return 0;
 
   const product=findProductByName(sale.prod);
-  const masterPurchasePrice=Number(product?.purchase_price||0);
+  const masterPurchasePrice=averagePurchaseCostForProduct(sale.prod);
   if(masterPurchasePrice<=0) return 0;
 
   const allocations=getPurchaseAllocationsForSale(sale,bills);
@@ -1028,6 +1091,7 @@ function renderNav(){
       ["payments","Payments"],
       ["parties","Parties"],
       ["products","Products"],
+      ["stock","Stock"],
       ["expenses","Expenses"],
       ["ledger","Ledger"]
     ];
@@ -1063,6 +1127,7 @@ function go(page){
   const adminOnly=[
     "dashboard",
     "products",
+    "stock",
     "expenses"
   ];
 
@@ -1103,6 +1168,7 @@ function renderPage(){
     [
       "dashboard",
       "products",
+      "stock",
       "expenses"
     ].includes(active)
   ){
@@ -1130,6 +1196,9 @@ function renderPage(){
 
   if(active==="products")
     return productsPage(main);
+
+  if(active==="stock")
+    return stockPage(main);
 
   if(active==="expenses")
     return expensesPage(main);
@@ -1458,6 +1527,14 @@ function dashboardPage(main){
   const todayProfit=netProfitFor(todayBills);
   const periodProfit=netProfitFor(periodBills);
   const totalProfit=netProfitFor(allBills);
+
+
+  const stockValue=
+    (allProducts||[]).reduce((a,p)=>{
+      const s=calculateStockForProduct(p.name);
+      const c=averagePurchaseCostForProduct(p.name);
+      return a+(s>0?s*c:0);
+    },0);
 
 
   const rangeLabel={
@@ -1882,6 +1959,12 @@ function dashboardPage(main){
     <div class="grid" style="margin-top:14px">
 
       ${metric(
+        "Stock Value",
+        money(stockValue),
+        "Current stock \u00d7 avg purchase cost"
+      )}
+
+      ${metric(
         "Products",
         allProducts.length,
         "Products in inventory"
@@ -2158,17 +2241,15 @@ function toggleQuickProduct(){
 
 async function quickAddProduct(){
   const name=document.getElementById("quickProductName")?.value.trim();
-  const purchase=Number(document.getElementById("quickProductPurchase")?.value||0);
   const sale=Number(document.getElementById("quickProductSale")?.value||0);
 
   if(!name){ toast("Enter product name"); return; }
-  if(purchase<0 || sale<=0){ toast("Enter valid purchase and sale prices"); return; }
+  if(sale<=0){ toast("Enter a valid sale price"); return; }
 
   const {error}=await db.from("app_products").insert({
     id:"PR-"+Date.now(),
     name,
     unit:"kg",
-    purchase_price:purchase,
     sale_price:sale
   });
 
@@ -2294,13 +2375,12 @@ function salesPage(main){
           </div>
 
           <div id="quickProductBox" style="display:none;margin-top:8px;padding:10px;border:1px solid var(--line);border-radius:10px">
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:8px;align-items:end">
+            <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
               ${input("Product Name","quickProductName","")}
-              ${input("Purchase Price","quickProductPurchase","0","number")}
               ${input("Sale Price","quickProductSale","0","number")}
               <button type="button" class="btn green" onclick="quickAddProduct()">Save</button>
             </div>
-            <div class="hint">Adds the product to Product Master and immediately refreshes this dropdown.</div>
+            <div class="hint">Adds the product to Product Master and immediately refreshes this dropdown. Purchase cost comes from your purchase bills.</div>
           </div>
 
         </div>
@@ -2751,7 +2831,7 @@ async function saveSale(e){
   if(masterPurchasePrice<0){
 
     toast(
-      "Purchase Price is invalid in Product Master"
+      "Purchase cost could not be calculated"
     );
 
     return;
@@ -3166,11 +3246,6 @@ function purchasePage(main){
 
   const recalcPurchase=()=>{
 
-    const name=
-      document.getElementById(
-        "purchaseProduct"
-      ).value;
-
     const qty=
       Number(
         document.getElementById(
@@ -3178,53 +3253,19 @@ function purchasePage(main){
         ).value||0
       );
 
-
-    const result=
-      calculateProductPurchase(
-        name,
-        qty
+    const price=
+      Number(
+        document.getElementById(
+          "purchasePrice"
+        ).value||0
       );
 
-
-    const priceEl=
-      document.getElementById(
-        "purchasePrice"
-      );
-
-    const amountEl=
-      document.getElementById(
-        "purchaseAmt"
-      );
-
-
-    if(!result.product){
-
-      priceEl.value="0";
-
-      amountEl.value="0";
-
-      return;
-
-    }
-
-
-    priceEl.value=
-      result.purchasePrice.toFixed(2);
-
-    amountEl.value=
-      result.amount.toFixed(2);
+    document.getElementById(
+      "purchaseAmt"
+    ).value=
+      (price*qty).toFixed(2);
 
   };
-
-
-  document
-    .getElementById(
-      "purchaseProduct"
-    )
-    .addEventListener(
-      "change",
-      recalcPurchase
-    );
 
 
   document
@@ -3237,9 +3278,15 @@ function purchasePage(main){
     );
 
 
-  document.getElementById(
-    "purchasePrice"
-  ).readOnly=true;
+  document
+    .getElementById(
+      "purchasePrice"
+    )
+    .addEventListener(
+      "input",
+      recalcPurchase
+    );
+
 
   document.getElementById(
     "purchaseAmt"
@@ -3329,8 +3376,8 @@ async function savePurchase(e){
 
 
   /*
-    Product Master is checked AGAIN
-    when saving.
+    Product Master is checked AGAIN when saving.
+    Purchase price is taken from what the user typed on this bill.
   */
 
   const result=
@@ -3355,16 +3402,20 @@ async function savePurchase(e){
     result.product;
 
   const purchasePrice=
-    result.purchasePrice;
+    Number(
+      document.getElementById(
+        "purchasePrice"
+      ).value||0
+    );
 
   const amt=
-    result.amount;
+    purchasePrice*qty;
 
 
-  if(purchasePrice<0){
+  if(purchasePrice<=0){
 
     toast(
-      "Purchase Price is invalid in Product Master"
+      "Enter the purchase price for this bill"
     );
 
     return;
@@ -4285,7 +4336,6 @@ function productsPage(main){
       <div class="formgrid">
         ${input("Product Name","productName","","text",true)}
         ${input("Unit","productUnit","kg")}
-        ${input("Purchase Price","productPurchase","0","number")}
         ${input("Sale Price","productSale","0","number")}
       </div>
 
@@ -4299,8 +4349,8 @@ function productsPage(main){
     <h3>Product Master</h3>
 
     <div class="notice">
-      <b>Important:</b> Sale and purchase calculations use the prices saved here.
-      You can edit a product if a price/name was entered incorrectly, or remove it if it was added by mistake.
+      <b>How it works:</b> Sale price is set here for quick billing.
+      Purchase cost and stock are calculated automatically from the purchase and sale bills you record, so you do not type them.
     </div>
 
     <div class="table-wrap">
@@ -4308,16 +4358,21 @@ function productsPage(main){
         <tr>
           <th>Product</th>
           <th>Unit</th>
-          <th>Purchase Price</th>
+          <th>Stock</th>
+          <th>Avg Purchase Cost</th>
           <th>Sale Price</th>
           <th>Actions</th>
         </tr>
 
-        ${cache.products.length ? cache.products.map(x=>`
+        ${cache.products.length ? cache.products.map(x=>{
+          const stock=calculateStockForProduct(x.name);
+          const avgCost=averagePurchaseCostForProduct(x.name);
+          return `
           <tr>
             <td><b>${esc(x.name)}</b></td>
             <td>${esc(x.unit||"")}</td>
-            <td>${money(x.purchase_price)}</td>
+            <td>${stock} ${esc(x.unit||"")}</td>
+            <td>${avgCost>0 ? money(avgCost) : "\u2014"}</td>
             <td>${money(x.sale_price)}</td>
             <td>
               <div class="actions">
@@ -4326,9 +4381,10 @@ function productsPage(main){
               </div>
             </td>
           </tr>
-        `).join("") : `
+          `;
+        }).join("") : `
           <tr>
-            <td colspan="5" class="empty">
+            <td colspan="6" class="empty">
               No products in Product Master yet. Add your products above before making new sales.
             </td>
           </tr>
@@ -4364,7 +4420,6 @@ function editProduct(id){
       <div class="formgrid">
         ${input("Product Name","editProductName",product.name||"","text",true)}
         ${input("Unit","editProductUnit",product.unit||"kg")}
-        ${input("Purchase Price","editProductPurchase",product.purchase_price||0,"number")}
         ${input("Sale Price","editProductSale",product.sale_price||0,"number")}
       </div>
 
@@ -4380,12 +4435,11 @@ function editProduct(id){
 
     const name=document.getElementById("editProductName").value.trim();
     const unit=document.getElementById("editProductUnit").value.trim()||"kg";
-    const purchasePrice=Number(document.getElementById("editProductPurchase").value||0);
     const salePrice=Number(document.getElementById("editProductSale").value||0);
 
     if(!name){ toast("Product name is required"); return; }
-    if(purchasePrice<0 || salePrice<=0){
-      toast("Enter valid product values");
+    if(salePrice<=0){
+      toast("Enter a valid sale price");
       return;
     }
 
@@ -4400,7 +4454,6 @@ function editProduct(id){
     const {error}=await db.from("app_products").update({
       name,
       unit,
-      purchase_price:purchasePrice,
       sale_price:salePrice
     }).eq("id",id);
 
@@ -4456,12 +4509,11 @@ async function saveProduct(e){
 
   const name=document.getElementById("productName").value.trim();
   const unit=document.getElementById("productUnit").value.trim()||"kg";
-  const purchasePrice=Number(document.getElementById("productPurchase").value||0);
   const salePrice=Number(document.getElementById("productSale").value||0);
 
   if(!name){ toast("Product name is required"); return; }
-  if(purchasePrice<0 || salePrice<=0){
-    toast("Enter valid product values");
+  if(salePrice<=0){
+    toast("Enter a valid sale price");
     return;
   }
 
@@ -4477,7 +4529,6 @@ async function saveProduct(e){
     id:"PR-"+Date.now(),
     name,
     unit,
-    purchase_price:purchasePrice,
     sale_price:salePrice
   });
 
@@ -4488,6 +4539,165 @@ async function saveProduct(e){
 
   toast("Product added to Product Master");
   await loadAll();
+}
+
+
+/* =====================================================
+   STOCK  (calculated from purchases minus sales)
+===================================================== */
+
+function stockPage(main){
+
+  const rows=
+    (cache.products||[]).map(p=>{
+
+      const stock=calculateStockForProduct(p.name);
+      const avgCost=averagePurchaseCostForProduct(p.name);
+      const value=stock*avgCost;
+
+      return {
+        name:p.name,
+        unit:p.unit||"",
+        stock,
+        avgCost,
+        value
+      };
+
+    });
+
+
+  const totalValue=
+    rows.reduce((a,x)=>a+(x.value>0?x.value:0),0);
+
+
+  main.innerHTML=`
+
+  <div class="page-title">
+
+    <div>
+      <h2>Stock</h2>
+      <div class="hint">
+        Stock is calculated automatically: total purchased minus total sold, from your recorded bills.
+      </div>
+    </div>
+
+    <button class="btn alt" onclick="loadAll()">Refresh</button>
+
+  </div>
+
+
+  <div class="grid" style="margin-bottom:18px">
+
+    ${metric(
+      "Products",
+      rows.length,
+      "In Product Master"
+    )}
+
+    ${metric(
+      "Total Stock Value",
+      money(totalValue),
+      "Stock \u00d7 average purchase cost"
+    )}
+
+  </div>
+
+
+  <div class="card">
+
+    <div class="table-wrap">
+
+      <table>
+
+        <tr>
+          <th>Product</th>
+          <th>Current Stock</th>
+          <th>Avg Purchase Cost</th>
+          <th>Stock Value</th>
+        </tr>
+
+        ${
+          rows.length===0
+          ?
+          `<tr><td colspan="4" class="empty">No products yet. Add products and record purchases to see stock.</td></tr>`
+          :
+          rows.map(x=>`
+            <tr>
+              <td><b>${esc(x.name)}</b></td>
+              <td>
+                ${x.stock} ${esc(x.unit)}
+                ${
+                  x.stock<0
+                  ? ` <span class="pill red">CHECK</span>`
+                  : x.stock===0
+                    ? ` <span class="pill">EMPTY</span>`
+                    : ` <span class="pill green">IN STOCK</span>`
+                }
+              </td>
+              <td>${x.avgCost>0 ? money(x.avgCost) : "\u2014"}</td>
+              <td>${x.value>0 ? money(x.value) : "\u2014"}</td>
+            </tr>
+          `).join("")
+        }
+
+      </table>
+
+    </div>
+
+    <div class="hint" style="margin-top:12px">
+      A negative stock means more was sold than purchased in the records, usually because an old sale has no matching purchase bill yet. Add the missing purchase to correct it.
+    </div>
+
+  </div>
+
+
+  <div class="section">
+
+    <h3>Stock Movement</h3>
+
+    <div class="table-wrap">
+
+      <table>
+
+        <tr>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Party</th>
+          <th>Product</th>
+          <th>Quantity</th>
+          <th>Amount</th>
+        </tr>
+
+        ${
+          (cache.bills||[])
+            .filter(x=>x.type==="sale"||x.type==="purchase")
+            .slice(0,100)
+            .map(x=>`
+              <tr>
+                <td>${esc(x.date)}</td>
+                <td>
+                  ${
+                    x.type==="sale"
+                    ? `<span class="pill red">OUT</span>`
+                    : `<span class="pill green">IN</span>`
+                  }
+                </td>
+                <td>${esc(x.party)}</td>
+                <td>${esc(x.prod)}</td>
+                <td>${x.qty||0}</td>
+                <td>${money(x.amt)}</td>
+              </tr>
+            `).join("")
+        }
+
+      </table>
+
+    </div>
+
+  </div>
+
+  `;
+
 }
 
 
