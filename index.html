@@ -408,7 +408,7 @@ const root=document.getElementById("root");
 const today=()=>new Date().toISOString().slice(0,10);
 
 const money=n =>
-"₹"+Number(n||0).toLocaleString(
+"\u20b9"+Number(n||0).toLocaleString(
   "en-IN",
   {maximumFractionDigits:2}
 );
@@ -461,10 +461,10 @@ function findProductByName(value){
   SALE CALCULATION
 
   Sale Amount =
-  Sale Price × Quantity
+  Sale Price \u00d7 Quantity
 
   Profit =
-  (Sale Price - Purchase Price) × Quantity
+  (Sale Price - Purchase Price) \u00d7 Quantity
 */
 function calculateProductProfit(
   productName,
@@ -516,7 +516,7 @@ function calculateProductProfit(
   PURCHASE CALCULATION
 
   Purchase Amount =
-  Purchase Price × Quantity
+  Purchase Price \u00d7 Quantity
 */
 function calculateProductPurchase(
   productName,
@@ -870,7 +870,7 @@ function showLogin(msg=""){
     <div class="login-card">
 
       <div class="logo">
-        🍫 Chocolate Trade Desk
+        \ud83c\udf6b Chocolate Trade Desk
       </div>
 
       <div class="sub">
@@ -976,7 +976,7 @@ function renderApp(){
     <header class="top">
 
       <div class="brand">
-        🍫 Chocolate Trade Desk
+        \ud83c\udf6b Chocolate Trade Desk
       </div>
 
       <span class="role">
@@ -1028,7 +1028,6 @@ function renderNav(){
       ["payments","Payments"],
       ["parties","Parties"],
       ["products","Products"],
-      ["stock","Stock"],
       ["expenses","Expenses"],
       ["ledger","Ledger"]
     ];
@@ -1064,7 +1063,6 @@ function go(page){
   const adminOnly=[
     "dashboard",
     "products",
-    "stock",
     "expenses"
   ];
 
@@ -1105,7 +1103,6 @@ function renderPage(){
     [
       "dashboard",
       "products",
-      "stock",
       "expenses"
     ].includes(active)
   ){
@@ -1133,9 +1130,6 @@ function renderPage(){
 
   if(active==="products")
     return productsPage(main);
-
-  if(active==="stock")
-    return stockPage(main);
 
   if(active==="expenses")
     return expensesPage(main);
@@ -1466,24 +1460,6 @@ function dashboardPage(main){
   const totalProfit=netProfitFor(allBills);
 
 
-  const stockValue=
-    allProducts.reduce(
-      (a,x)=>
-        a+
-        Number(x.stock||0)*
-        Number(x.purchase_price||0),
-      0
-    );
-
-
-  const lowStock=
-    allProducts.filter(
-      x=>
-        Number(x.stock||0)<=
-        Number(x.min_stock||0)
-    );
-
-
   const rangeLabel={
 
     today:"Today",
@@ -1728,7 +1704,7 @@ function dashboardPage(main){
       ${metric(
         "Today's Net Profit",
         money(todayProfit),
-        `Gross ${money(todayGrossProfit)} − Financing Interest ${money(todayInterest)}`
+        `Gross ${money(todayGrossProfit)} \u2212 Financing Interest ${money(todayInterest)}`
       )}
 
       ${metric(
@@ -1823,7 +1799,7 @@ function dashboardPage(main){
       ${metric(
         rangeLabel+" Net Profit",
         money(periodProfit),
-        `Gross ${money(periodGrossProfit)} − Financing Interest ${money(periodInterest)}`
+        `Gross ${money(periodGrossProfit)} \u2212 Financing Interest ${money(periodInterest)}`
       )}
 
       ${metric(
@@ -1864,7 +1840,7 @@ function dashboardPage(main){
       ${metric(
         "Total Net Profit",
         money(totalProfit),
-        `Gross ${money(totalGrossProfit)} − Financing Interest ${money(totalInterest)}`
+        `Gross ${money(totalGrossProfit)} \u2212 Financing Interest ${money(totalInterest)}`
       )}
 
       ${metric(
@@ -1904,12 +1880,6 @@ function dashboardPage(main){
     </div>
 
     <div class="grid" style="margin-top:14px">
-
-      ${metric(
-        "Stock Value",
-        money(stockValue),
-        "Inventory at purchase value"
-      )}
 
       ${metric(
         "Products",
@@ -2014,70 +1984,6 @@ function dashboardPage(main){
         }
 
       </div>
-
-    </div>
-
-  </div>
-
-
-  <div class="section">
-
-    <h3>STOCK ALERTS</h3>
-
-    <div class="card">
-
-      ${
-        lowStock.length===0
-        ?
-        `<div class="empty">
-          No low-stock products.
-        </div>`
-        :
-        `
-        <div class="table-wrap">
-
-          <table>
-
-            <tr>
-              <th>Product</th>
-              <th>Current Stock</th>
-              <th>Minimum Stock</th>
-              <th>Status</th>
-            </tr>
-
-            ${
-              lowStock.slice(0,15).map(
-                p=>`
-                <tr>
-
-                  <td>${esc(p.name)}</td>
-
-                  <td>
-                    ${Number(p.stock||0)}
-                    ${esc(p.unit||"")}
-                  </td>
-
-                  <td>
-                    ${Number(p.min_stock||0)}
-                    ${esc(p.unit||"")}
-                  </td>
-
-                  <td>
-                    <span class="pill red">
-                      LOW STOCK
-                    </span>
-                  </td>
-
-                </tr>
-              `
-              ).join("")
-            }
-
-          </table>
-
-        </div>
-        `
-      }
 
     </div>
 
@@ -2262,8 +2168,6 @@ async function quickAddProduct(){
     id:"PR-"+Date.now(),
     name,
     unit:"kg",
-    stock:0,
-    min_stock:0,
     purchase_price:purchase,
     sale_price:sale
   });
@@ -2368,7 +2272,7 @@ function salesPage(main){
           >
 
             <option value="">
-              ${cache.products.length ? "Select Product" : "No products — use + Add"}
+              ${cache.products.length ? "Select Product" : "No products \u2014 use + Add"}
             </option>
 
             ${
@@ -2661,11 +2565,11 @@ function salesPage(main){
     hintEl.innerHTML=
       `<b>${esc(result.product.name)}</b>:
       Sale ${money(result.salePrice)}
-      − Purchase ${money(result.purchasePrice)}
+      \u2212 Purchase ${money(result.purchasePrice)}
       = Margin ${money(
         result.salePrice-result.purchasePrice
       )}
-      × ${qty} qty
+      \u00d7 ${qty} qty
       = <b>Profit ${money(result.profit)}</b>`;
 
   };
@@ -3029,12 +2933,6 @@ async function saveSale(e){
   }
 
 
-  await updateStock(
-    masterProduct.name,
-    -qty
-  );
-
-
   const savedSale={
     id,
     type:"sale",
@@ -3053,7 +2951,7 @@ async function saveSale(e){
   );
 
   toast(
-    `Sale saved — Gross Profit ${money(profit)} | Interest ${money(financingInterest)} | Net ${money(profit-financingInterest)}`
+    `Sale saved \u2014 Gross Profit ${money(profit)} | Interest ${money(financingInterest)} | Net ${money(profit-financingInterest)}`
   );
 
 
@@ -3605,12 +3503,6 @@ async function savePurchase(e){
     return;
 
   }
-
-
-  await updateStock(
-    masterProduct.name,
-    qty
-  );
 
 
   toast(
@@ -4255,8 +4147,6 @@ function productsPage(main){
       <div class="formgrid">
         ${input("Product Name","productName","","text",true)}
         ${input("Unit","productUnit","kg")}
-        ${input("Opening Stock","productStock","0","number")}
-        ${input("Minimum Stock","productMin","0","number")}
         ${input("Purchase Price","productPurchase","0","number")}
         ${input("Sale Price","productSale","0","number")}
       </div>
@@ -4280,11 +4170,8 @@ function productsPage(main){
         <tr>
           <th>Product</th>
           <th>Unit</th>
-          <th>Stock</th>
-          <th>Minimum</th>
           <th>Purchase Price</th>
           <th>Sale Price</th>
-          <th>Status</th>
           <th>Actions</th>
         </tr>
 
@@ -4292,17 +4179,8 @@ function productsPage(main){
           <tr>
             <td><b>${esc(x.name)}</b></td>
             <td>${esc(x.unit||"")}</td>
-            <td>${x.stock||0}</td>
-            <td>${x.min_stock||0}</td>
             <td>${money(x.purchase_price)}</td>
             <td>${money(x.sale_price)}</td>
-            <td>
-              ${
-                Number(x.stock||0)<=Number(x.min_stock||0)
-                ? `<span class="pill red">LOW STOCK</span>`
-                : `<span class="pill green">OK</span>`
-              }
-            </td>
             <td>
               <div class="actions">
                 <button class="btn alt" type="button" onclick="editProduct('${esc(x.id)}')">Edit</button>
@@ -4312,7 +4190,7 @@ function productsPage(main){
           </tr>
         `).join("") : `
           <tr>
-            <td colspan="8" class="empty">
+            <td colspan="5" class="empty">
               No products in Product Master yet. Add your products above before making new sales.
             </td>
           </tr>
@@ -4340,7 +4218,7 @@ function editProduct(id){
   box.style.display="block";
   box.innerHTML=`
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px">
-      <h3 style="margin:0">Edit Product — ${esc(product.name)}</h3>
+      <h3 style="margin:0">Edit Product \u2014 ${esc(product.name)}</h3>
       <button class="btn alt" type="button" onclick="closeProductEdit()">Close</button>
     </div>
 
@@ -4348,8 +4226,6 @@ function editProduct(id){
       <div class="formgrid">
         ${input("Product Name","editProductName",product.name||"","text",true)}
         ${input("Unit","editProductUnit",product.unit||"kg")}
-        ${input("Stock","editProductStock",product.stock||0,"number")}
-        ${input("Minimum Stock","editProductMin",product.min_stock||0,"number")}
         ${input("Purchase Price","editProductPurchase",product.purchase_price||0,"number")}
         ${input("Sale Price","editProductSale",product.sale_price||0,"number")}
       </div>
@@ -4366,13 +4242,11 @@ function editProduct(id){
 
     const name=document.getElementById("editProductName").value.trim();
     const unit=document.getElementById("editProductUnit").value.trim()||"kg";
-    const stock=Number(document.getElementById("editProductStock").value||0);
-    const minStock=Number(document.getElementById("editProductMin").value||0);
     const purchasePrice=Number(document.getElementById("editProductPurchase").value||0);
     const salePrice=Number(document.getElementById("editProductSale").value||0);
 
     if(!name){ toast("Product name is required"); return; }
-    if(stock<0 || minStock<0 || purchasePrice<0 || salePrice<=0){
+    if(purchasePrice<0 || salePrice<=0){
       toast("Enter valid product values");
       return;
     }
@@ -4388,8 +4262,6 @@ function editProduct(id){
     const {error}=await db.from("products").update({
       name,
       unit,
-      stock,
-      min_stock:minStock,
       purchase_price:purchasePrice,
       sale_price:salePrice
     }).eq("id",id);
@@ -4424,8 +4296,8 @@ async function deleteProduct(id){
   );
 
   const warning=usedInBills
-    ? `\\n\\nWARNING: ${product.name} is already used in existing bills. Removing it will keep those old bills, but this product will no longer be available in Product Master for future calculations.\\n\\nContinue?`
-    : `\\n\\nRemove ${product.name} from Product Master?`;
+    ? `\n\nWARNING: ${product.name} is already used in existing bills. Removing it will keep those old bills, but this product will no longer be available in Product Master for future calculations.\n\nContinue?`
+    : `\n\nRemove ${product.name} from Product Master?`;
 
   if(!confirm(warning)) return;
 
@@ -4446,13 +4318,11 @@ async function saveProduct(e){
 
   const name=document.getElementById("productName").value.trim();
   const unit=document.getElementById("productUnit").value.trim()||"kg";
-  const stock=Number(document.getElementById("productStock").value||0);
-  const minStock=Number(document.getElementById("productMin").value||0);
   const purchasePrice=Number(document.getElementById("productPurchase").value||0);
   const salePrice=Number(document.getElementById("productSale").value||0);
 
   if(!name){ toast("Product name is required"); return; }
-  if(stock<0 || minStock<0 || purchasePrice<0 || salePrice<=0){
+  if(purchasePrice<0 || salePrice<=0){
     toast("Enter valid product values");
     return;
   }
@@ -4469,8 +4339,6 @@ async function saveProduct(e){
     id:"PR-"+Date.now(),
     name,
     unit,
-    stock,
-    min_stock:minStock,
     purchase_price:purchasePrice,
     sale_price:salePrice
   });
@@ -4482,141 +4350,6 @@ async function saveProduct(e){
 
   toast("Product added to Product Master");
   await loadAll();
-}
-
-
-/* =====================================================
-   STOCK
-===================================================== */
-
-function stockPage(main){
-
-  main.innerHTML=`
-
-  <div class="page-title">
-
-    <h2>Stock</h2>
-
-  </div>
-
-
-  <div class="grid">
-
-    ${
-      cache.products.map(
-        x=>`
-
-        <div class="card metric">
-
-          <div class="label">
-            ${esc(x.name)}
-          </div>
-
-          <div class="value">
-            ${x.stock||0}
-            ${esc(x.unit||"")}
-          </div>
-
-          <div class="small">
-
-            ${
-              Number(x.stock||0)<=
-              Number(x.min_stock||0)
-
-              ?
-
-              "⚠️ Low stock"
-
-              :
-
-              "Stock healthy"
-            }
-
-          </div>
-
-        </div>
-
-      `
-      ).join("")
-    }
-
-  </div>
-
-
-  <div class="section">
-
-    <h3>Stock Movement</h3>
-
-    <div class="table-wrap">
-
-      <table>
-
-        <tr>
-          <th>Date</th>
-          <th>Type</th>
-          <th>Party</th>
-          <th>Product</th>
-          <th>Quantity</th>
-          <th>Amount</th>
-        </tr>
-
-        ${
-          cache.bills
-            .filter(
-              x=>
-                x.type==="sale"||
-                x.type==="purchase"
-            )
-            .slice(0,100)
-            .map(
-              x=>`
-
-              <tr>
-
-                <td>${esc(x.date)}</td>
-
-                <td>
-
-                  ${
-                    x.type==="sale"
-
-                    ?
-
-                    `<span class="pill red">
-                      OUT
-                    </span>`
-
-                    :
-
-                    `<span class="pill green">
-                      IN
-                    </span>`
-                  }
-
-                </td>
-
-                <td>${esc(x.party)}</td>
-
-                <td>${esc(x.prod)}</td>
-
-                <td>${x.qty||0}</td>
-
-                <td>${money(x.amt)}</td>
-
-              </tr>
-
-            `
-            ).join("")
-        }
-
-      </table>
-
-    </div>
-
-  </div>
-
-  `;
-
 }
 
 
@@ -4937,7 +4670,7 @@ function editBill(id){
     ">
 
       <h3 style="margin:0">
-        Edit Bill —
+        Edit Bill \u2014
         ${esc(
           bill.no||
           bill.id
@@ -5381,16 +5114,6 @@ async function saveBillEdit(e,id){
     ).value.trim();
 
 
-  const oldProduct=
-    oldBill.prod||"";
-
-
-  const oldQty=
-    Number(
-      oldBill.qty||0
-    );
-
-
   let fileUrl=
     oldBill.file||"";
 
@@ -5538,32 +5261,6 @@ async function saveBillEdit(e,id){
   }
 
 
-  if(oldBill.type==="purchase")
-    await updateStock(
-      oldProduct,
-      -oldQty
-    );
-
-  if(oldBill.type==="sale")
-    await updateStock(
-      oldProduct,
-      oldQty
-    );
-
-
-  if(type==="purchase")
-    await updateStock(
-      newProduct,
-      qty
-    );
-
-  if(type==="sale")
-    await updateStock(
-      newProduct,
-      -qty
-    );
-
-
   toast(
     "Bill updated successfully"
   );
@@ -5683,64 +5380,6 @@ async function downloadBill(path){
   a.remove();
 
   URL.revokeObjectURL(url);
-
-}
-
-
-/* =====================================================
-   STOCK UPDATE
-===================================================== */
-
-async function updateStock(
-  name,
-  change
-){
-
-  if(!name)return;
-
-
-  const {
-    data:product,
-    error:findError
-  }=
-    await db
-      .from("products")
-      .select(
-        "id,stock,name"
-      )
-      .ilike(
-        "name",
-        name
-      )
-      .limit(1)
-      .maybeSingle();
-
-
-  if(
-    findError ||
-    !product
-  ){
-
-    return;
-
-  }
-
-
-  await db
-    .from("products")
-    .update({
-
-      stock:
-        Number(
-          product.stock||0
-        )+
-        change
-
-    })
-    .eq(
-      "id",
-      product.id
-    );
 
 }
 
