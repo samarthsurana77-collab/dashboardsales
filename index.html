@@ -5101,11 +5101,12 @@ async function deleteBill(id){
   }
 
 
-  const {error}=
+  const {data:deletedRows,error}=
     await db
       .from("bills")
       .delete()
-      .eq("id",id);
+      .eq("id",id)
+      .select();
 
 
   if(error){
@@ -5113,6 +5114,17 @@ async function deleteBill(id){
     toast(
       "Delete failed: "+
       error.message
+    );
+
+    return;
+
+  }
+
+
+  if(!deletedRows || deletedRows.length===0){
+
+    toast(
+      "Nothing was deleted. The database blocked it (check delete permission / RLS policy on the bills table)."
     );
 
     return;
