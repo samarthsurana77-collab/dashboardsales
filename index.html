@@ -621,6 +621,215 @@ function productProfitForBill(bill){
   return result.profit;
 }
 
+
+/* =====================================================
+   NET PROFIT COSTS
+   Gross Profit = Sale - Purchase Cost
+   Net Profit   = Gross - Financing Interest - Delivery Cost
+
+   Financing Interest: 0.75% per month, from the purchase date
+   until the sale money is actually received.
+   Delivery Cost: 0.50 per kg on every sale.
+===================================================== */
+const FINANCING_RATE_MONTHLY = 0.0075;
+const DELIVERY_COST_PER_KG = 0.50;
+
+function dateOnly(value){
+  if(!value) return null;
+  const d=new Date(String(value).slice(0,10)+"T00:00:00");
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function daysBetween(from,to){
+  const a=dateOnly(from), b=dateOnly(to);
+  if(!a||!b) return 0;
+  return Math.max(0, Math.round((b-a)/86400000));
+}
+
+function financingMonths(from,to){
+  return daysBetween(from,to)/30;
+}
+
+function getPurchaseAllocationsForSale(targetSale, bills){
+  const sorted=[...(bills||[])]
+    .filter(x=>x && (x.type==="purchase" || x.type==="sale"))
+    .sort((a,b)=>{
+      const da=String(a.date||"");
+      const db=String(b.date||"");
+      if(da!==db) return da.localeCompare(db);
+      return String(a.created_at||"").localeCompare(String(b.created_at||""));
+    });
+
+  const lots={};
+  const targetId=targetSale && targetSale.id;
+  const targetProduct=normalizeProductName(targetSale?.prod);
+  let targetQty=Number(targetSale?.qty||0);
+  const allocations=[];
+
+  for(const bill of sorted){
+    const key=normalizeProductName(bill.prod);
+    if(!key) continue;
+
+    if(bill.type==="purchase"){
+      const qty=Number(bill.qty||0);
+      if(qty>0){
+        (lots[key] ||= []).push({
+          qty,
+          date:String(bill.date||"").slice(0,10)
+        });
+      }
+      continue;
+    }
+
+    const saleQty=Number(bill.qty||0);
+    if(saleQty<=0) continue;
+
+    const queue=lots[key] || [];
+    let remaining=saleQty;
+
+    while(remaining>0 && queue.length){
+      const lot=queue[0];
+      const used=Math.min(remaining,Number(lot.qty||0));
+      lot.qty-=used;
+      remaining-=used;
+
+      if(bill.id===targetId && targetQty>0 && key===targetProduct){
+        const targetUsed=Math.min(used,targetQty);
+        if(targetUsed>0){
+          allocations.push({qty:targetUsed,purchaseDate:lot.date});
+          targetQty-=targetUsed;
+        }
+      }
+
+      if(lot.qty<=0) queue.shift();
+    }
+  }
+
+  return allocations;
+}
+
+function paymentTimelineForSale(sale, payments){
+  const saleDate=String(sale?.date||"").slice(0,10);
+  const saleAmount=Math.max(0,Number(sale?.amt||0));
+  const directPaid=Math.min(saleAmount,Math.max(0,Number(sale?.paid||0)));
+
+  const timeline=[];
+  if(directPaid>0){
+    timeline.push({date:saleDate,amount:directPaid});
+  }
+
+  const linked=(payments||[])
+    .filter(p=>
+      String(p.bill_id||"")===String(sale?.id||"") &&
+      String(p.type||"").toLowerCase()==="received"
+    )
+    .sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
+
+  let recorded=directPaid;
+  for(const p of linked){
+    const amount=Math.max(0,Number(p.amount||0));
+    if(amount<=0) continue;
+    const usable=Math.min(amount,Math.max(0,saleAmount-recorded));
+    if(usable<=0) continue;
+    timeline.push({date:String(p.date||saleDate).slice(0,10),amount:usable});
+    recorded+=usable;
+    if(recorded>=saleAmount) break;
+  }
+
+  return {timeline,saleAmount,paid:recorded};
+}
+
+function calculateSaleFinancingInterest(sale,bills,payments){
+  if(!sale || sale.type!=="sale") return 0;
+
+  const masterPurchasePrice=averagePurchaseCostForProduct(sale.prod);
+  if(masterPurchasePrice<=0) return 0;
+
+  const allocations=getPurchaseAllocationsForSale(sale,bills);
+  if(!allocations.length) return 0;
+
+  const paymentInfo=paymentTimelineForSale(sale,payments);
+  const saleAmount=paymentInfo.saleAmount;
+  if(saleAmount<=0) return 0;
+
+  const totalPurchaseCost=allocations.reduce(
+    (a,x)=>a+x.qty*masterPurchasePrice,
+    0
+  );
+
+  if(totalPurchaseCost<=0) return 0;
+
+  const events=[...paymentInfo.timeline];
+  const received=events.reduce((a,x)=>a+Number(x.amount||0),0);
+
+  if(received<saleAmount){
+    events.push({
+      date:today(),
+      amount:Math.max(0,saleAmount-received)
+    });
+  }
+
+  events.sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));
+
+  let totalInterest=0;
+  let outstandingSale=saleAmount;
+  let outstandingPurchaseCost=totalPurchaseCost;
+  let previousDate=null;
+
+  for(const event of events){
+    const eventDate=String(event.date||today()).slice(0,10);
+    if(!eventDate || outstandingSale<=0 || outstandingPurchaseCost<=0) break;
+
+    if(!previousDate){
+      totalInterest += allocations.reduce((sum,allocation)=>{
+        const cost=allocation.qty*masterPurchasePrice;
+        return sum + cost*FINANCING_RATE_MONTHLY*
+          financingMonths(allocation.purchaseDate,eventDate);
+      },0);
+    }else{
+      totalInterest += outstandingPurchaseCost*
+        FINANCING_RATE_MONTHLY*
+        financingMonths(previousDate,eventDate);
+    }
+
+    const paymentAmount=Math.min(
+      outstandingSale,
+      Math.max(0,Number(event.amount||0))
+    );
+
+    const purchaseCostReduction=
+      saleAmount>0
+        ? outstandingPurchaseCost*(paymentAmount/outstandingSale)
+        : outstandingPurchaseCost;
+
+    outstandingSale=Math.max(0,outstandingSale-paymentAmount);
+    outstandingPurchaseCost=Math.max(
+      0,
+      outstandingPurchaseCost-purchaseCostReduction
+    );
+
+    previousDate=eventDate;
+  }
+
+  return Math.max(0,totalInterest);
+}
+
+function saleDeliveryCost(sale){
+  if(!sale || sale.type!=="sale") return 0;
+  return DELIVERY_COST_PER_KG*Number(sale.qty||0);
+}
+
+function saleGrossProfit(sale){
+  return productProfitForBill(sale);
+}
+
+function saleNetProfit(sale,bills,payments){
+  const gross=saleGrossProfit(sale);
+  const interest=calculateSaleFinancingInterest(sale,bills,payments);
+  const delivery=saleDeliveryCost(sale);
+  return gross-interest-delivery;
+}
+
 function toast(message){
 
   const x=document.createElement("div");
@@ -1278,13 +1487,27 @@ function dashboardPage(main){
 
   const productProfit=bill=>productProfitForBill(bill);
 
-  const netProfitFor=arr=>
+  const grossProfitFor=arr=>
     arr
       .filter(x=>x.type==="sale")
-      .reduce(
-        (a,x)=>a+productProfit(x),
-        0
-      );
+      .reduce((a,x)=>a+productProfit(x),0);
+
+  const interestFor=arr=>
+    arr
+      .filter(x=>x.type==="sale")
+      .reduce((a,x)=>a+calculateSaleFinancingInterest(x,allBills,allPayments),0);
+
+  const deliveryFor=arr=>
+    arr
+      .filter(x=>x.type==="sale")
+      .reduce((a,x)=>a+saleDeliveryCost(x),0);
+
+  const netProfitFor=arr=>
+    grossProfitFor(arr)-interestFor(arr)-deliveryFor(arr);
+
+  const todayGrossProfit=grossProfitFor(todayBills);
+  const periodGrossProfit=grossProfitFor(periodBills);
+  const totalGrossProfit=grossProfitFor(allBills);
 
   const todayProfit=netProfitFor(todayBills);
   const periodProfit=netProfitFor(periodBills);
@@ -1541,9 +1764,15 @@ function dashboardPage(main){
       )}
 
       ${metric(
+        "Today's Gross Profit",
+        money(todayGrossProfit),
+        "Sale minus purchase cost"
+      )}
+
+      ${metric(
         "Today's Net Profit",
         money(todayProfit),
-        "Sale minus purchase cost"
+        "Gross minus interest and delivery"
       )}
 
       ${metric(
@@ -1636,9 +1865,15 @@ function dashboardPage(main){
     <div class="grid" style="margin-top:14px">
 
       ${metric(
+        rangeLabel+" Gross Profit",
+        money(periodGrossProfit),
+        "Sale minus purchase cost"
+      )}
+
+      ${metric(
         rangeLabel+" Net Profit",
         money(periodProfit),
-        "Sale minus purchase cost"
+        "Gross minus interest and delivery"
       )}
 
       ${metric(
@@ -1677,9 +1912,15 @@ function dashboardPage(main){
       )}
 
       ${metric(
+        "Total Gross Profit",
+        money(totalGrossProfit),
+        "Sale minus purchase cost"
+      )}
+
+      ${metric(
         "Total Net Profit",
         money(totalProfit),
-        "Sale minus purchase cost"
+        "Gross minus interest and delivery"
       )}
 
     </div>
@@ -2290,6 +2531,7 @@ function salesPage(main){
           <th>Amount</th>
           <th>Paid</th>
           <th>Credit</th>
+          <th>Gross Profit</th>
           <th>Net Profit</th>
           <th>Bill</th>
           <th>Action</th>
@@ -2771,8 +3013,25 @@ async function saveSale(e){
   }
 
 
+  const savedSale={
+    id,
+    type:"sale",
+    date:document.getElementById("saleDate").value,
+    prod:masterProduct.name,
+    qty,
+    amt,
+    paid,
+    credit
+  };
+
+  const netNow=saleNetProfit(
+    savedSale,
+    [...cache.bills,savedSale],
+    cache.payments
+  );
+
   toast(
-    `Sale saved \u2014 Profit ${money(profit)}`
+    `Sale saved \u2014 Gross ${money(profit)} | Net ${money(netNow)}`
   );
 
 
@@ -5958,7 +6217,9 @@ function saleTableRow(x){
 
     </td>
 
-    <td>${money(productProfitForBill(x))}</td>
+    <td>${money(saleGrossProfit(x))}</td>
+
+    <td>${money(saleNetProfit(x,cache.bills,cache.payments))}</td>
 
     <td>
 
